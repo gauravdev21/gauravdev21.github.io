@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>JK Electricals</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#075E54">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="JK Electricals">
+<link rel="manifest" href="manifest.json">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://accounts.google.com/gsi/client"></script>
+<style>
+  :root {
+    --wa-green:       #25D366;
+    --wa-green-dark:  #128C7E;
+    --wa-green-light: #DCF8C6;
+    --wa-teal:        #075E54;
+    --wa-bg:          #ECE5DD;
+    --wa-white:       #FFFFFF;
+    --wa-panel:       #F0F0F0;
+    --wa-border:      #E0E0E0;
+    --wa-text:        #111111;
+    --wa-muted:       #667781;
+    --wa-muted2:      #B0BEC5;
+    --wa-bubble-in:   #FFFFFF;
+    --wa-bubble-out:  #DCF8C6;
+    --wa-red:         #E53935;
+    --wa-blue:        #1565C0;
+    --radius-bubble:  10px;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { font-family:'Roboto',sans-serif; background:var(--wa-bg); color:var(--wa-text); min-height:100vh; max-width:480px; margin:0 auto; position:relative; }
+
+  /* ── WHATSAPP HEADER ── */
+  .wa-header {
+    background:var(--wa-teal);
+    padding:10px 16px;
+    display:flex; align-items:center; gap:12px;
+    position:sticky; top:0; z-index:100;
+    box-shadow:0 1px 3px rgba(0,0,0,0.2);
+  }
+  .wa-back { color:#fff; font-size:22px; cursor:pointer; display:none; padding:2px; line-height:1; }
+  .wa-avatar {
+    width:38px; height:38px; border-radius:50%;
+    background:var(--wa-green); display:flex; align-items:center; justify-content:center;
+    font-size:16px; font-weight:700; color:#fff; flex-shrink:0;
+  }
+  .wa-header-info { flex:1; min-width:0; }
+  .wa-header-name { font-size:15px; font-weight:500; color:#fff; }
+  .wa-header-sub { font-size:12px; color:rgba(255,255,255,0.7); margin-top:1px; }
+  .wa-header-actions { display:flex; gap:4px; }
+  .wa-icon-btn { background:none; border:none; color:rgba(255,255,255,0.85); cursor:pointer; padding:6px; font-size:18px; border-radius:50%; }
+
+  /* ── CHAT BACKGROUND ── */
+  .chat-bg {
+    min-height:calc(100vh - 56px);
+    background-color: var(--wa-bg);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ctext y='50' font-size='30' opacity='0.03'%3E💬%3C/text%3E%3C/svg%3E");
+    padding:10px 10px 20px;
+  }
+
+  /* ── SCREENS ── */
+  .screen { display:none; }
+  .screen.active { display:block; }
+
+  /* ── BUBBLES ── */
+  .bubble-wrap { display:flex; margin-bottom:6px; }
+  .bubble-wrap.out { justify-content:flex-end; }
+  .bubble-wrap.in  { justify-content:flex-start; }
+
+  .bubble {
+    max-width:85%;
+    border-radius:var(--radius-bubble);
+    padding:8px 12px;
+    font-size:14px;
+    line-height:1.4;
+    box-shadow:0 1px 2px rgba(0,0,0,0.13);
+    position:relative;
+  }
+  .bubble.in  { background:var(--wa-bubble-in);  border-top-left-radius:2px; }
+  .bubble.out { background:var(--wa-bubble-out); border-top-right-radius:2px; }
+  .bubble-time { font-size:11px; color:var(--wa-muted); text-align:right; margin-top:4px; }
+
+  /* ── SUMMARY BUBBLE ── */
+  .sum-bubble { background:var(--wa-bubble-in); border-radius:var(--radius-bubble); border-top-left-radius:2px; padding:12px 14px; box-shadow:0 1px 2px rgba(0,0,0,0.13); width:100%; margin-bottom:6px; }
+  .sum-bubble-title { font-size:12px; font-weight:700; color:var(--wa-teal); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.3px; }
+  .sum-row { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--wa-border); }
+  .sum-row:last-child { border-bottom:none; }
+  .sum-row-label { font-size:13px; color:var(--wa-muted); }
+  .sum-row-value { font-size:14px; font-weight:700; }
+  .sum-row-value.green { color:var(--wa-green-dark); }
+  .sum-row-value.red   { color:var(--wa-red); }
+  .sum-row-value.blue  { color:var(--wa-blue); }
+
+  /* ── MENU BUTTONS (like WhatsApp quick replies) ── */
+  .menu-wrap { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 12px; }
+  #month-chips { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; padding-bottom:2px; }
+  #month-chips::-webkit-scrollbar { display:none; }
+  .menu-btn {
+    background:var(--wa-white); border:1.5px solid var(--wa-green-dark);
+    color:var(--wa-green-dark); border-radius:20px; padding:8px 16px;
+    font-size:13px; font-weight:500; cursor:pointer; font-family:'Roboto',sans-serif;
+    box-shadow:0 1px 2px rgba(0,0,0,0.1); transition:all 0.15s;
+  }
+  .menu-btn:active { background:var(--wa-green-light); }
+  .menu-btn.active { background:var(--wa-green-dark); color:#fff; }
+
+  /* ── DATE DIVIDER ── */
+  .date-divider { text-align:center; margin:10px 0; }
+  .date-divider span { background:rgba(255,255,255,0.7); color:var(--wa-muted); font-size:11px; padding:4px 12px; border-radius:10px; box-shadow:0 1px 2px rgba(0,0,0,0.08); }
+
+  /* ── LIST BUBBLES (parties & transactions) ── */
+  .list-bubble {
+    background:var(--wa-white); border-radius:var(--radius-bubble); border-top-left-radius:2px;
+    box-shadow:0 1px 2px rgba(0,0,0,0.13); overflow:hidden; width:100%; margin-bottom:6px;
+  }
+  .list-bubble-title { background:var(--wa-teal); color:#fff; padding:8px 14px; font-size:12px; font-weight:700; letter-spacing:0.3px; display:flex; justify-content:space-between; align-items:center; }
+  .list-bubble-title span { font-size:11px; opacity:0.8; font-weight:400; }
+
+  .party-item { display:flex; align-items:center; padding:10px 14px; border-bottom:1px solid var(--wa-border); cursor:pointer; transition:background 0.1s; }
+  .party-item:last-child { border-bottom:none; }
+  .party-item:active { background:var(--wa-panel); }
+  .party-avatar { width:36px; height:36px; border-radius:50%; background:var(--wa-teal); display:flex; align-items:center; justify-content:center; color:#fff; font-size:13px; font-weight:700; flex-shrink:0; margin-right:10px; }
+  .party-avatar.red { background:#C62828; }
+  .party-info { flex:1; min-width:0; }
+  .party-name-text { font-size:13px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .party-meta-text { font-size:11px; color:var(--wa-muted); margin-top:1px; }
+  .party-amt-wrap { text-align:right; }
+  .party-amt-val { font-size:13px; font-weight:700; }
+  .party-amt-val.green { color:var(--wa-green-dark); }
+  .party-amt-val.red   { color:var(--wa-red); }
+  .party-chevron { color:var(--wa-muted2); font-size:16px; margin-left:6px; }
+
+  /* ── TXN ITEMS ── */
+  .txn-item { padding:10px 14px; border-bottom:1px solid var(--wa-border); }
+  .txn-item:last-child { border-bottom:none; }
+  .txn-top { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+  .txn-name { font-size:13px; font-weight:500; flex:1; line-height:1.3; }
+  .txn-amount { font-size:13px; font-weight:700; white-space:nowrap; }
+  .txn-amount.in  { color:var(--wa-green-dark); }
+  .txn-amount.out { color:var(--wa-red); }
+  .txn-bot { display:flex; gap:8px; margin-top:3px; flex-wrap:wrap; align-items:center; }
+  .txn-date { font-size:11px; color:var(--wa-muted); }
+  .txn-tag { font-size:10px; background:var(--wa-panel); color:var(--wa-muted); padding:1px 7px; border-radius:10px; border:1px solid var(--wa-border); }
+  .txn-vch { font-size:10px; color:var(--wa-muted2); }
+
+  /* ── DRILL HEADER ── */
+  .drill-stats-bubble {
+    background:var(--wa-white); border-radius:var(--radius-bubble); border-top-left-radius:2px;
+    padding:12px 14px; box-shadow:0 1px 2px rgba(0,0,0,0.13); width:100%; margin-bottom:6px;
+  }
+  .drill-stat-row { display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid var(--wa-border); }
+  .drill-stat-row:last-child { border-bottom:none; }
+  .drill-stat-lbl { font-size:12px; color:var(--wa-muted); }
+  .drill-stat-val { font-size:13px; font-weight:700; }
+
+  /* ── SEARCH BAR (WhatsApp style) ── */
+  .wa-search { background:var(--wa-panel); border-radius:20px; display:flex; align-items:center; gap:8px; padding:6px 12px; margin-bottom:10px; }
+  .wa-search input { background:none; border:none; outline:none; font-size:13px; font-family:'Roboto',sans-serif; color:var(--wa-text); flex:1; }
+  .wa-search input::placeholder { color:var(--wa-muted); }
+
+  /* ── UPLOAD SCREEN ── */
+  .upload-bubble {
+    background:var(--wa-white); border-radius:var(--radius-bubble); border-top-left-radius:2px;
+    padding:14px; box-shadow:0 1px 2px rgba(0,0,0,0.13); margin-bottom:10px;
+  }
+  .upload-bubble h3 { font-size:14px; font-weight:700; color:var(--wa-teal); margin-bottom:6px; }
+  .upload-bubble p { font-size:13px; color:var(--wa-muted); line-height:1.5; margin-bottom:12px; }
+  .how-to-wa { background:var(--wa-panel); border-radius:8px; padding:10px 12px; margin-bottom:12px; }
+  .how-to-title { font-size:10px; font-weight:700; color:var(--wa-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
+  .how-step { font-size:12px; color:var(--wa-text); line-height:1.7; padding-left:14px; position:relative; }
+  .how-step::before { content:'→'; position:absolute; left:0; color:var(--wa-muted2); }
+  .how-step code { background:var(--wa-white); border:1px solid var(--wa-border); padding:0 4px; border-radius:3px; font-size:11px; }
+
+  .file-item { display:flex; align-items:center; padding:10px 0; border-bottom:1px solid var(--wa-border); cursor:pointer; gap:10px; }
+  .file-item:last-of-type { border-bottom:none; }
+  .file-item:active { opacity:0.7; }
+  .file-ico { font-size:22px; flex-shrink:0; }
+  .file-label { flex:1; }
+  .file-label-name { font-size:13px; font-weight:500; }
+  .file-label-desc { font-size:11px; color:var(--wa-muted); margin-top:1px; }
+  .file-st { font-size:11px; color:var(--wa-muted2); flex-shrink:0; }
+  .file-st.ok { color:var(--wa-green-dark); font-weight:700; }
+  input[type=file] { display:none; }
+
+  .wa-send-btn {
+    width:100%; background:var(--wa-teal); color:#fff; border:none; border-radius:24px;
+    padding:12px; font-size:14px; font-weight:500; font-family:'Roboto',sans-serif;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
+    margin-top:12px; box-shadow:0 2px 4px rgba(0,0,0,0.2);
+  }
+  .wa-send-btn:active { opacity:0.85; }
+
+  /* Google sign in */
+  .google-btn {
+    width:100%; background:#fff; color:var(--wa-text); border:1px solid var(--wa-border);
+    border-radius:24px; padding:11px; font-size:13px; font-weight:500;
+    font-family:'Roboto',sans-serif; cursor:pointer; display:flex; align-items:center;
+    justify-content:center; gap:8px; box-shadow:0 1px 3px rgba(0,0,0,0.1);
+  }
+
+  .err-bubble { background:#FFEBEE; border:1px solid #FFCDD2; border-radius:8px; padding:10px 12px; font-size:12px; color:var(--wa-red); margin-top:8px; display:none; line-height:1.5; }
+
+  .note-wa { background:var(--wa-green-light); border-radius:8px; padding:8px 12px; font-size:12px; color:#2E7D32; margin-bottom:10px; line-height:1.5; }
+
+  /* ── LOADING ── */
+  #loading { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:200; align-items:center; justify-content:center; }
+  #loading.show { display:flex; }
+  .loading-box { background:#fff; border-radius:12px; padding:20px 28px; display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .spin { width:28px; height:28px; border:3px solid var(--wa-border); border-top-color:var(--wa-teal); border-radius:50%; animation:sp 0.7s linear infinite; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+  .spin-lbl { font-size:13px; color:var(--wa-muted); }
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="loading-box"><div class="spin"></div><p class="spin-lbl">Loading...</p></div></div>
+
+<!-- ══════════════════════════
+     WHATSAPP HEADER
+══════════════════════════ -->
+<div class="wa-header">
+  <div class="wa-back" id="back-btn" onclick="goBack()">‹</div>
+  <div class="wa-avatar" id="hdr-avatar">JK</div>
+  <div class="wa-header-info">
+    <div class="wa-header-name" id="hdr-name">JK Electricals</div>
+    <div class="wa-header-sub" id="hdr-sub">Upload files to begin</div>
+  </div>
+  <div class="wa-header-actions">
+    <button class="wa-icon-btn" onclick="showUpload()" title="Upload files">⊕</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════
+     UPLOAD SCREEN
+══════════════════════════ -->
+<div id="screen-upload" class="screen active">
+  <div class="chat-bg">
+
+    <div class="date-divider"><span>Today</span></div>
+
+    <!-- Google Drive bubble -->
+    <div class="bubble-wrap in">
+      <div class="upload-bubble">
+        <h3>🔗 Connect Google Drive</h3>
+        <p>Sign in once. Accountant uploads files — you just tap Refresh daily. Your data stays private.</p>
+        <div id="gdrive-signin">
+          <button class="google-btn" onclick="startGoogleAuth()">
+            <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.2l6.8-6.8C35.8 2.5 30.2 0 24 0 14.7 0 6.7 5.4 2.7 13.3l7.9 6.1C12.5 13.1 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.6 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.6 5.9c4.4-4.1 7.1-10.1 7.1-17.1z"/><path fill="#FBBC05" d="M10.6 28.6A14.8 14.8 0 0 1 9.5 24c0-1.6.3-3.1.7-4.6l-7.9-6.1A23.9 23.9 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8l8-6.2z"/><path fill="#34A853" d="M24 48c6.2 0 11.4-2 15.2-5.5l-7.6-5.9c-2.1 1.4-4.7 2.2-7.6 2.2-6.2 0-11.5-3.6-13.4-8.8l-8 6.2C6.7 42.6 14.7 48 24 48z"/></svg>
+            Sign in with Google
+          </button>
+        </div>
+        <div id="gdrive-connected" style="display:none;">
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--wa-border);margin-bottom:12px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:var(--wa-green);"></div>
+            <div style="font-size:13px;font-weight:500;flex:1;" id="gdrive-email">Connected</div>
+            <div style="font-size:12px;color:var(--wa-red);cursor:pointer;" onclick="signOut()">Sign out</div>
+          </div>
+          <div class="err-bubble" id="gdrive-err"></div>
+          <button class="wa-send-btn" onclick="loadFromDrive()">↓ &nbsp;Load Latest from Drive</button>
+        </div>
+        <div class="bubble-time">Setup</div>
+      </div>
+    </div>
+
+    <!-- Manual upload toggle -->
+    <div style="text-align:center;margin:6px 0 10px;">
+      <span onclick="toggleManual()" id="manual-toggle" style="font-size:12px;color:var(--wa-muted);cursor:pointer;text-decoration:underline;">Having trouble? Upload files manually</span>
+    </div>
+
+    <!-- Manual upload bubble (hidden by default) -->
+    <div id="manual-section" style="display:none;">
+    <div class="bubble-wrap in">
+      <div class="upload-bubble">
+        <h3>📁 Upload Tally Files</h3>
+        <p>Export 3 files from Tally, send on WhatsApp, tap below to upload.</p>
+        <div class="how-to-wa">
+          <div class="how-to-title">How to export from Tally</div>
+          <div class="how-step"><b>Day Book:</b> Gateway → Day Book → <code>E</code> → Current → Excel</div>
+          <div class="how-step"><b>Debtors:</b> Display More Reports → Sundry Debtors → <code>E</code> → Excel</div>
+          <div class="how-step"><b>Creditors:</b> Display More Reports → Sundry Creditors → <code>E</code> → Excel</div>
+        </div>
+        <div class="file-item" onclick="document.getElementById('f-daybook').click()">
+          <div class="file-ico">📒</div>
+          <div class="file-label"><div class="file-label-name">Day Book</div><div class="file-label-desc">All transactions</div></div>
+          <div class="file-st" id="st-daybook">Select</div>
+          <input type="file" id="f-daybook" accept=".xlsx,.xls" onchange="onFile('daybook',this)">
+        </div>
+        <div class="file-item" onclick="document.getElementById('f-debtors').click()">
+          <div class="file-ico">💰</div>
+          <div class="file-label"><div class="file-label-name">Sundry Debtors</div><div class="file-label-desc">Buyers who owe you</div></div>
+          <div class="file-st" id="st-debtors">Select</div>
+          <input type="file" id="f-debtors" accept=".xlsx,.xls" onchange="onFile('debtors',this)">
+        </div>
+        <div class="file-item" onclick="document.getElementById('f-creditors').click()">
+          <div class="file-ico">🧾</div>
+          <div class="file-label"><div class="file-label-name">Sundry Creditors</div><div class="file-label-desc">Vendors you owe</div></div>
+          <div class="file-st" id="st-creditors">Select</div>
+          <input type="file" id="f-creditors" accept=".xlsx,.xls" onchange="onFile('creditors',this)">
+        </div>
+        <div class="err-bubble" id="err-box"></div>
+        <button class="wa-send-btn" onclick="loadAll()">View Dashboard →</button>
+        <div class="bubble-time">Daily</div>
+      </div>
+    </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════
+     MAIN DASHBOARD
+══════════════════════════ -->
+<div id="screen-main" class="screen">
+  <div class="chat-bg">
+
+    <div class="date-divider"><span id="dashboard-date">Today</span></div>
+
+    <!-- Summary bubble -->
+    <div class="bubble-wrap in">
+      <div class="sum-bubble">
+        <div class="sum-bubble-title">📊 Business Summary</div>
+        <div class="sum-row"><div class="sum-row-label">💰 To Collect (Debtors)</div><div class="sum-row-value green" id="s-collect">—</div></div>
+        <div class="sum-row"><div class="sum-row-label">🧾 To Pay (Creditors)</div><div class="sum-row-value red" id="s-pay">—</div></div>
+        <div class="sum-row"><div class="sum-row-label">📈 Net Position</div><div class="sum-row-value blue" id="s-net">—</div></div>
+        <div class="bubble-time" id="s-time"></div>
+      </div>
+    </div>
+
+    <!-- Menu buttons -->
+    <div class="menu-wrap">
+      <button class="menu-btn active" id="btn-daybook"   onclick="switchView('daybook')">📒 Day Book</button>
+      <button class="menu-btn"        id="btn-debtors"   onclick="switchView('debtors')">💰 Debtors</button>
+      <button class="menu-btn"        id="btn-creditors" onclick="switchView('creditors')">🧾 Creditors</button>
+    </div>
+
+    <!-- DAY BOOK VIEW -->
+    <div id="view-daybook">
+      <div class="wa-search">
+        <span style="color:var(--wa-muted);font-size:14px;">🔍</span>
+        <input placeholder="Search party or voucher type..." oninput="filterDaybook(this.value)">
+      </div>
+      <div class="menu-wrap" id="month-chips" style="margin-bottom:8px;"></div>
+      <div class="list-bubble">
+        <div class="list-bubble-title">All Transactions <span id="daybook-count"></span></div>
+        <div id="list-daybook"></div>
+      </div>
+    </div>
+
+    <!-- DEBTORS VIEW -->
+    <div id="view-debtors" style="display:none;">
+      <div class="wa-search">
+        <span style="color:var(--wa-muted);font-size:14px;">🔍</span>
+        <input placeholder="Search buyer name..." oninput="filterParties('debtors',this.value)">
+      </div>
+      <div class="list-bubble">
+        <div class="list-bubble-title">Buyers — Money to Collect <span id="debtors-count"></span></div>
+        <div id="list-debtors"></div>
+      </div>
+    </div>
+
+    <!-- CREDITORS VIEW -->
+    <div id="view-creditors" style="display:none;">
+      <div class="wa-search">
+        <span style="color:var(--wa-muted);font-size:14px;">🔍</span>
+        <input placeholder="Search vendor name..." oninput="filterParties('creditors',this.value)">
+      </div>
+      <div class="list-bubble">
+        <div class="list-bubble-title">Vendors — Money to Pay <span id="creditors-count"></span></div>
+        <div id="list-creditors"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════
+     DRILL DOWN
+══════════════════════════ -->
+<div id="screen-drill" class="screen">
+  <div class="chat-bg">
+    <div class="date-divider"><span id="drill-date-label">Party Details</span></div>
+
+    <!-- Stats bubble -->
+    <div class="bubble-wrap in">
+      <div class="drill-stats-bubble">
+        <div class="drill-stat-row">
+          <div class="drill-stat-lbl">Outstanding Balance</div>
+          <div class="drill-stat-val" id="dr-balance">—</div>
+        </div>
+        <div class="drill-stat-row">
+          <div class="drill-stat-lbl" id="dr-lbl-primary">Total Sales (YTD)</div>
+          <div class="drill-stat-val" style="color:var(--wa-green-dark)" id="dr-primary">—</div>
+        </div>
+        <div class="drill-stat-row">
+          <div class="drill-stat-lbl" id="dr-lbl-payment">Received (YTD)</div>
+          <div class="drill-stat-val" style="color:var(--wa-blue)" id="dr-payment">—</div>
+        </div>
+        <div class="bubble-time">From Tally closing balance</div>
+      </div>
+    </div>
+
+    <!-- Transactions -->
+    <div id="dr-body"></div>
+
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════
+// CONFIG
+// ══════════════════════════════
+const GOOGLE_CLIENT_ID = '1056068446070-kaiktdrk5jjoct30clvp1u7gho0dvk0k.apps.googleusercontent.com';
+const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
+const FOLDER_ID = '19OMfhZDWUF3w6vLoZC4_fF7x2GdncZqz';
+let gAccessToken = null;
+
+// ══════════════════════════════
+// DATA
+// ══════════════════════════════
+const DB = { debtors:[], creditors:[], daybook:[] };
+const FILES = {};
+let activeMonth = '';
+let lastUpdated = '';
+let currentView = 'daybook';
+
+
+// Safe element helper — avoids null errors
+function el(id) { return document.getElementById(id); }
+function show(id, val) { const e = document.getElementById(id); if(e) e.style.display = val; }
+
+// ══════════════════════════════
+// SCREENS
+// ══════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showUpload() {
+  showScreen('screen-upload');
+  show('back-btn','none');
+  document.getElementById('hdr-avatar').textContent = 'JK';
+  document.getElementById('hdr-name').textContent = 'JK Electricals';
+  document.getElementById('hdr-sub').textContent = 'Tally Dashboard';
+}
+
+function goBack() {
+  showScreen('screen-main');
+  show('back-btn','none');
+  document.getElementById('hdr-avatar').textContent = 'JK';
+  document.getElementById('hdr-name').textContent = 'JK Electricals';
+  document.getElementById('hdr-sub').textContent = lastUpdated;
+}
+
+showScreen('screen-upload');
+
+// ══════════════════════════════
+// FILE HANDLING
+// ══════════════════════════════
+function onFile(type, input) {
+  if (!input.files[0]) return;
+  FILES[type] = input.files[0];
+  const el = document.getElementById('st-'+type);
+  el.textContent = '✓';
+  el.classList.add('ok');
+}
+
+function readWb(file) {
+  return new Promise((res,rej) => {
+    const r = new FileReader();
+    r.onload = e => { try { res(XLSX.read(e.target.result,{type:'array',cellDates:true})); } catch(e){rej(e);} };
+    r.readAsArrayBuffer(file);
+  });
+}
+
+async function loadAll() {
+  if (!FILES.daybook && !FILES.debtors && !FILES.creditors) { showErr('err-box','Please select at least one file.'); return; }
+  clearErr('err-box');
+  showLoading(true);
+  try {
+    if (FILES.debtors)  { const rows=parsePartyFile(await readWb(FILES.debtors));  DB.debtors  =rows.filter(r=>r.debit>0) .map(r=>({name:r.name,amount:r.debit})) .sort((a,b)=>b.amount-a.amount); }
+    if (FILES.creditors){ const rows=parsePartyFile(await readWb(FILES.creditors)); DB.creditors=rows.filter(r=>r.credit>0).map(r=>({name:r.name,amount:r.credit})).sort((a,b)=>b.amount-a.amount); }
+    if (FILES.daybook)  { DB.daybook=parseDayBook(await readWb(FILES.daybook)); }
+    renderMain();
+  } catch(e) { showErr('err-box','Error reading file: '+e.message); console.error(e); }
+  showLoading(false);
+}
+
+// ══════════════════════════════
+// GOOGLE DRIVE
+// ══════════════════════════════
+function initGoogleAuth() {
+  if (GOOGLE_CLIENT_ID === 'YOUR_CLIENT_ID') return;
+  let attempts = 0;
+  function tryInit() {
+    attempts++;
+    try {
+      if (typeof google === 'undefined' || !google.accounts) {
+        if (attempts < 20) setTimeout(tryInit, 300);
+        return;
+      }
+      window._tc = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: SCOPES,
+        callback: handleGToken,
+        error_callback: (err) => showErr('gdrive-err', 'Sign-in error: ' + (err.message || err.type || 'Unknown error'))
+      });
+    } catch(e) {
+      if (attempts < 20) setTimeout(tryInit, 300);
+    }
+  }
+  tryInit();
+}
+
+function startGoogleAuth() {
+  clearErr('gdrive-err');
+  if (typeof google === 'undefined' || !google.accounts) {
+    showErr('gdrive-err', 'Google Sign-In is still loading. Please wait a moment and try again.');
+    return;
+  }
+  if (!window._tc) {
+    try {
+      window._tc = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: SCOPES,
+        callback: handleGToken,
+        error_callback: (err) => showErr('gdrive-err', 'Sign-in error: ' + (err.message || err.type || 'Unknown error'))
+      });
+    } catch(e) {
+      showErr('gdrive-err', 'Could not initialise Google Sign-In: ' + e.message);
+      return;
+    }
+  }
+  try {
+    window._tc.requestAccessToken({prompt: 'consent'});
+  } catch(e) {
+    showErr('gdrive-err', 'Sign-in failed: ' + e.message);
+  }
+}
+
+function handleGToken(resp) {
+  if (resp.error) {
+    // If error during silent refresh, just keep showing cached data — don't disrupt user
+    if (resp.error === 'interaction_required' || resp.error === 'access_denied') return;
+    showErr('gdrive-err','Sign-in error: '+resp.error);
+    return;
+  }
+  gAccessToken = resp.access_token;
+  localStorage.setItem('jk_token_time', Date.now());
+  fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+gAccessToken}})
+    .then(r=>r.json()).then(info => {
+      if (info.email) localStorage.setItem('jk_user_email', info.email);
+      document.getElementById('gdrive-email').textContent = info.email||'Signed in';
+      show('gdrive-signin','none');
+      show('gdrive-connected','block');
+      loadFromDrive();
+    });
+}
+
+function signOut() {
+  gAccessToken=null;
+  show('gdrive-signin','block');
+  show('gdrive-connected','none');
+}
+
+async function loadFromDrive() {
+  const fid=FOLDER_ID;
+  if(!gAccessToken){showErr('gdrive-err','Please sign in first.');return;}
+  clearErr('gdrive-err');
+  // Show loading spinner but keep current screen visible (don't navigate away)
+  showLoading(true);
+  const wasOnDashboard = document.getElementById('screen-main').classList.contains('active');
+  try {
+    const q=encodeURIComponent("'"+fid+"' in parents and mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' and trashed=false");
+    const res=await fetch('https://www.googleapis.com/drive/v3/files?q='+q+'&fields=files(id,name,modifiedTime)&orderBy=modifiedTime+desc&includeItemsFromAllDrives=true&supportsAllDrives=true',{headers:{Authorization:'Bearer '+gAccessToken}});
+    const data=await res.json();
+    if(data.error){
+      // On error during refresh — stay on dashboard, just update subtitle
+      if(wasOnDashboard){ document.getElementById('hdr-sub').textContent='Refresh failed · '+lastUpdated; showLoading(false); return; }
+      showErr('gdrive-err','Drive error: '+data.error.message); showLoading(false); return;
+    }
+    const files=data.files||[];
+    if(!files.length){
+      if(wasOnDashboard){ document.getElementById('hdr-sub').textContent='No files found · '+lastUpdated; showLoading(false); return; }
+      showErr('gdrive-err','No Excel files found in this folder.'); showLoading(false); return;
+    }
+    const dbF=files.find(f=>f.name==='DayBook.xlsx');
+    const drF=files.find(f=>f.name==='Debtors.xlsx');
+    const crF=files.find(f=>f.name==='Creditors.xlsx');
+    if(!dbF&&!drF&&!crF){
+      if(wasOnDashboard){ document.getElementById('hdr-sub').textContent='Files not found · '+lastUpdated; showLoading(false); return; }
+      showErr('gdrive-err','Could not match files.'); showLoading(false); return;
+    }
+    if(drF){const rows=parsePartyFile(await dlFile(drF.id));DB.debtors=rows.filter(r=>r.debit>0).map(r=>({name:r.name,amount:r.debit})).sort((a,b)=>b.amount-a.amount);}
+    if(crF){const rows=parsePartyFile(await dlFile(crF.id));DB.creditors=rows.filter(r=>r.credit>0).map(r=>({name:r.name,amount:r.credit})).sort((a,b)=>b.amount-a.amount);}
+    if(dbF){DB.daybook=parseDayBook(await dlFile(dbF.id));}
+    renderMain();
+  } catch(e){
+    // On any error during refresh — stay on dashboard with cached data
+    if(wasOnDashboard){ document.getElementById('hdr-sub').textContent='Refresh failed · '+lastUpdated; showLoading(false); return; }
+    showErr('gdrive-err','Error: '+e.message); console.error(e);
+  }
+  showLoading(false);
+}
+
+async function dlFile(id) {
+  const res=await fetch('https://www.googleapis.com/drive/v3/files/'+id+'?alt=media&supportsAllDrives=true',{headers:{Authorization:'Bearer '+gAccessToken}});
+  return XLSX.read(await res.arrayBuffer(),{type:'array',cellDates:true});
+}
+
+// ══════════════════════════════
+// PARSERS
+// ══════════════════════════════
+function parsePartyFile(wb) {
+  const ws=wb.Sheets[wb.SheetNames[0]];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+  const result=[];
+  let started=false,skip=0;
+  for(const row of rows){
+    if(!started){if(row[0]==='Particulars'){started=true;skip=2;}continue;}
+    if(skip>0){skip--;continue;}
+    const name=row[0]?String(row[0]).replace(/_x000D_\n_x000D_\n/g,'').trim():'';
+    if(!name||name.length<2) continue;
+    if(name==='Grand Total') continue;
+    const debit=parseFloat(row[1])||0,credit=parseFloat(row[2])||0;
+    if(debit>0||credit>0) result.push({name,debit,credit});
+  }
+  return result;
+}
+
+function parseDayBook(wb) {
+  const ws=wb.Sheets[wb.SheetNames[0]];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,cellDates:true});
+  const result=[];
+  let started=false;
+  for(const row of rows){
+    if(!started){if(row[0]==='Date'&&row[1]==='Particulars'){started=true;}continue;}
+    if(!row[0]&&!row[1]) continue;
+    if(row[4]==='Inwards Qty') continue;
+    const rawDate=row[0];
+    if(!(rawDate instanceof Date)) continue;
+    const dateStr=rawDate.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+    const party=String(row[1]||'').replace(/_x000D_\n_x000D_\n/g,'').trim();
+    const vtype=String(row[2]||'').trim(),vnum=String(row[3]||'').trim();
+    const debit=parseFloat(row[4])||0,credit=parseFloat(row[5])||0;
+    if(!party||(debit===0&&credit===0)) continue;
+    result.push({rawDate,dateStr,party,vtype,vnum,debit,credit});
+  }
+  return result;
+}
+
+// ══════════════════════════════
+// FORMAT
+// ══════════════════════════════
+function fmt(n) {
+  const a=Math.abs(n);
+  if(a>=1e7) return '₹'+(a/1e7).toFixed(1)+'Cr';
+  if(a>=1e5) return '₹'+(a/1e5).toFixed(1)+'L';
+  return '₹'+a.toLocaleString('en-IN',{maximumFractionDigits:0});
+}
+
+function timeStr() {
+  return new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+}
+
+
+function autoLoad() {
+  if (loadFromStorage()) {
+    // Restore summary time from storage
+    const upd = localStorage.getItem('jk_updated');
+    if (upd) {
+      const dt = new Date(upd);
+      document.getElementById('s-time').textContent = dt.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+      document.getElementById('dashboard-date').textContent = dt.toLocaleDateString('en-IN',{weekday:'long',day:'2-digit',month:'long'});
+      document.getElementById('hdr-sub').textContent = lastUpdated;
+    }
+    // Rebuild UI from stored data
+    const totalD=DB.debtors.reduce((s,r)=>s+r.amount,0);
+    const totalC=DB.creditors.reduce((s,r)=>s+r.amount,0);
+    const net=totalD-totalC;
+    document.getElementById('s-collect').textContent=DB.debtors.length?fmt(totalD):'—';
+    document.getElementById('s-pay').textContent=DB.creditors.length?fmt(totalC):'—';
+    const netEl=document.getElementById('s-net');
+    netEl.textContent=fmt(Math.abs(net));
+    netEl.className='sum-row-value '+(net>=0?'green':'red');
+    renderParties('debtors',DB.debtors);
+    renderParties('creditors',DB.creditors);
+    buildMonthChips();
+    renderDaybook('','');
+    document.getElementById('debtors-count').textContent=DB.debtors.length+' parties';
+    document.getElementById('creditors-count').textContent=DB.creditors.length+' parties';
+    document.getElementById('hdr-sub').textContent=lastUpdated;
+    showScreen('screen-main');
+    show('back-btn','none');
+    show('refresh-btn','block');
+  }
+}
+
+// ══════════════════════════════
+// RENDER MAIN
+// ══════════════════════════════
+function renderMain() {
+  const totalD=DB.debtors.reduce((s,r)=>s+r.amount,0);
+  const totalC=DB.creditors.reduce((s,r)=>s+r.amount,0);
+  const net=totalD-totalC;
+
+  document.getElementById('s-collect').textContent=DB.debtors.length?fmt(totalD):'—';
+  document.getElementById('s-pay').textContent=DB.creditors.length?fmt(totalC):'—';
+  const netEl=document.getElementById('s-net');
+  netEl.textContent=fmt(Math.abs(net));
+  netEl.className='sum-row-value '+(net>=0?'green':'red');
+
+  const now=new Date();
+  document.getElementById('s-time').textContent=timeStr();
+  document.getElementById('dashboard-date').textContent=now.toLocaleDateString('en-IN',{weekday:'long',day:'2-digit',month:'long'});
+
+  lastUpdated='Updated '+now.toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  document.getElementById('hdr-sub').textContent=lastUpdated;
+
+  renderParties('debtors',DB.debtors);
+  renderParties('creditors',DB.creditors);
+  buildMonthChips();
+  renderDaybook('','');
+
+  document.getElementById('debtors-count').textContent=DB.debtors.length+' parties';
+  document.getElementById('creditors-count').textContent=DB.creditors.length+' parties';
+
+  saveToStorage();
+  showScreen('screen-main');
+  show('back-btn','none');
+  document.getElementById('hdr-avatar').textContent='JK';
+  document.getElementById('hdr-name').textContent='JK Electricals';
+  show('refresh-btn','block');
+}
+
+// ══════════════════════════════
+// PARTIES
+// ══════════════════════════════
+function renderParties(type,data) {
+  const el=document.getElementById('list-'+type);
+  if(!data.length){el.innerHTML='<div style="padding:20px;text-align:center;color:var(--wa-muted);font-size:13px;">No data loaded</div>';return;}
+  const isDebt=type==='debtors';
+  el.innerHTML=data.map(r=>{
+    const txns=DB.daybook.filter(t=>t.party.toLowerCase()===r.name.toLowerCase());
+    const initials=r.name.trim().split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    return `<div class="party-item" onclick="drillDown('${type}','${r.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}',${r.amount})">
+      <div class="party-avatar ${isDebt?'':'red'}">${initials}</div>
+      <div class="party-info">
+        <div class="party-name-text">${r.name}</div>
+        <div class="party-meta-text">${txns.length} transaction${txns.length!==1?'s':''}</div>
+      </div>
+      <div class="party-amt-wrap">
+        <div class="party-amt-val ${isDebt?'green':'red'}">${fmt(r.amount)}</div>
+      </div>
+      <div class="party-chevron">›</div>
+    </div>`;
+  }).join('');
+}
+
+function filterParties(type,q) {
+  renderParties(type,DB[type].filter(r=>r.name.toLowerCase().includes(q.toLowerCase())));
+}
+
+// ══════════════════════════════
+// DAY BOOK
+// ══════════════════════════════
+let allMonths = [];
+let monthsExpanded = false;
+
+function buildMonthChips() {
+  const months={};
+  DB.daybook.forEach(r=>{
+    const k=r.rawDate.toLocaleDateString('en-IN',{month:'short',year:'numeric'});
+    months[k]=(months[k]||0)+1;
+  });
+  allMonths = Object.entries(months).reverse();
+  renderMonthChips();
+}
+
+function renderMonthChips() {
+  const visible = monthsExpanded ? allMonths : allMonths.slice(0, 3);
+  const hasMore = allMonths.length > 4;
+  const wrap = document.getElementById('month-chips');
+  wrap.innerHTML =
+    `<button class="menu-btn active" onclick="selMonth('',this)">All</button>` +
+    visible.map(([m,c])=>`<button class="menu-btn" onclick="selMonth('${m}',this)">${m}</button>`).join('') +
+    (hasMore ? `<button class="menu-btn" style="border-style:dashed;" onclick="toggleMonths(this)">${monthsExpanded ? '▲ Less' : '▼ More'}</button>` : '');
+}
+
+function toggleMonths(el) {
+  monthsExpanded = !monthsExpanded;
+  // preserve active month selection
+  const prev = activeMonth;
+  renderMonthChips();
+  if (prev) {
+    const btns = document.querySelectorAll('#month-chips .menu-btn');
+    btns.forEach(b => { if(b.textContent === prev) b.classList.add('active'); });
+  }
+}
+
+function selMonth(m,el) {
+  activeMonth=m;
+  document.querySelectorAll('#month-chips .menu-btn').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderDaybook(document.querySelector('#view-daybook .wa-search input').value,m);
+}
+
+function filterDaybook(q){renderDaybook(q,activeMonth);}
+
+function renderDaybook(q,month) {
+  let data=[...DB.daybook].reverse();
+  if(q){const ql=q.toLowerCase();data=data.filter(r=>r.party.toLowerCase().includes(ql)||r.vtype.toLowerCase().includes(ql));}
+  if(month){data=data.filter(r=>r.rawDate.toLocaleDateString('en-IN',{month:'short',year:'numeric'})===month);}
+  const el=document.getElementById('list-daybook');
+  document.getElementById('daybook-count').textContent=data.length+' entries';
+  if(!data.length){el.innerHTML='<div style="padding:20px;text-align:center;color:var(--wa-muted);font-size:13px;">No transactions found</div>';return;}
+  el.innerHTML=data.slice(0,500).map(r=>`
+    <div class="txn-item">
+      <div class="txn-top">
+        <div class="txn-name">${r.party}</div>
+        <div class="txn-amount ${r.debit>0?'in':'out'}">${fmt(r.debit||r.credit)}</div>
+      </div>
+      <div class="txn-bot">
+        <span class="txn-date">${r.dateStr}</span>
+        <span class="txn-tag">${r.vtype}</span>
+        ${r.vnum?`<span class="txn-vch">${r.vnum}</span>`:''}
+      </div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════
+// DRILL DOWN
+// ══════════════════════════════
+function drillDown(type,name,closingBalance) {
+  const isDebtor=type==='debtors';
+  const txns=DB.daybook.filter(t=>t.party.toLowerCase()===name.toLowerCase()).sort((a,b)=>b.rawDate-a.rawDate);
+  const sales=txns.filter(t=>t.vtype==='Sales');
+  const purchases=txns.filter(t=>['Purchase','Purchases'].includes(t.vtype));
+  const receipts=txns.filter(t=>['Receipt','Receipts'].includes(t.vtype));
+  const payments=txns.filter(t=>['Payment','Payments'].includes(t.vtype));
+  const others=txns.filter(t=>!['Sales','Purchase','Purchases','Receipt','Receipts','Payment','Payments'].includes(t.vtype));
+  const primaryTxns=isDebtor?sales:purchases;
+  const paymentTxns=isDebtor?receipts:payments;
+  const primaryTotal=primaryTxns.reduce((s,r)=>s+(r.debit||r.credit),0);
+  const paymentTotal=paymentTxns.reduce((s,r)=>s+(r.credit||r.debit),0);
+
+  // Header
+  document.getElementById('dr-balance').textContent=fmt(closingBalance);
+  document.getElementById('dr-balance').style.color=isDebtor?'var(--wa-green-dark)':'var(--wa-red)';
+  document.getElementById('dr-lbl-primary').textContent=isDebtor?'Total Sales (YTD)':'Total Purchases (YTD)';
+  document.getElementById('dr-primary').textContent=primaryTotal?fmt(primaryTotal):'—';
+  document.getElementById('dr-lbl-payment').textContent=isDebtor?'Received (YTD)':'Paid (YTD)';
+  document.getElementById('dr-payment').textContent=paymentTotal?fmt(paymentTotal):'—';
+  document.getElementById('drill-date-label').textContent=name;
+
+  function makeGroup(title,rows,amtClass) {
+    if(!rows.length) return '';
+    return `<div class="bubble-wrap in" style="max-width:100%;"><div class="list-bubble">
+      <div class="list-bubble-title">${title} <span>${rows.length} entries</span></div>
+      ${rows.map(r=>`<div class="txn-item">
+        <div class="txn-top">
+          <div class="txn-name" style="color:var(--wa-muted);font-weight:400;">${r.vnum||r.vtype}</div>
+          <div class="txn-amount ${amtClass}">${fmt(r.debit||r.credit)}</div>
+        </div>
+        <div class="txn-bot"><span class="txn-date">${r.dateStr}</span><span class="txn-tag">${r.vtype}</span></div>
+      </div>`).join('')}
+    </div></div>`;
+  }
+
+  let body='';
+  if(!txns.length){
+    body=`<div class="bubble-wrap in" style="max-width:100%;"><div class="note-wa" style="width:100%;">No transactions found for this party in the Day Book period. The outstanding balance is accurate from Tally.</div></div>`;
+  } else {
+    body+=`<div class="bubble-wrap in" style="max-width:100%;"><div class="note-wa" style="width:100%;">💡 Outstanding balance (${fmt(closingBalance)}) is from Tally — accurate. Transactions below are from the Day Book export period.</div></div>`;
+    body+=makeGroup(isDebtor?'📦 Sales':'🛒 Purchases',primaryTxns,isDebtor?'in':'out');
+    body+=makeGroup(isDebtor?'✅ Payments Received':'✅ Payments Made',paymentTxns,isDebtor?'out':'in');
+    if(others.length) body+=makeGroup('📋 Other Entries',others,'out');
+  }
+
+  document.getElementById('dr-body').innerHTML=body;
+
+  showScreen('screen-drill');
+  show('back-btn','block');
+  const initials=name.trim().split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  document.getElementById('hdr-avatar').textContent=initials;
+  document.getElementById('hdr-name').textContent=name;
+  document.getElementById('hdr-sub').textContent=isDebtor?'Debtor':'Creditor';
+}
+
+// ══════════════════════════════
+// VIEW SWITCHING
+// ══════════════════════════════
+function switchView(name) {
+  ['daybook','debtors','creditors'].forEach(v=>{
+    document.getElementById('view-'+v).style.display=v===name?'block':'none';
+    document.getElementById('btn-'+v).classList.toggle('active',v===name);
+  });
+  currentView=name;
+}
+
+// ══════════════════════════════
+// UTILS
+// ══════════════════════════════
+function showLoading(v){document.getElementById('loading').classList.toggle('show',v);}
+function showErr(id,msg){const e=document.getElementById(id);if(e){e.textContent=msg;e.style.display='block';}}
+function clearErr(id){const el=document.getElementById(id);if(el)el.style.display='none';}
+
+// ══════════════════════════════
+// LOCAL STORAGE
+// ══════════════════════════════
+function saveToStorage() {
+  try {
+    // daybook dates need special handling (Date objects aren't JSON serializable)
+    const daybookForStorage = DB.daybook.map(r => ({
+      ...r,
+      rawDate: r.rawDate.toISOString()
+    }));
+    localStorage.setItem('jk_debtors',   JSON.stringify(DB.debtors));
+    localStorage.setItem('jk_creditors', JSON.stringify(DB.creditors));
+    localStorage.setItem('jk_daybook',   JSON.stringify(daybookForStorage));
+    localStorage.setItem('jk_updated',   new Date().toISOString());
+    console.log('Data saved to storage.');
+  } catch(e) { console.warn('Storage save failed:', e); }
+}
+
+function loadFromStorage() {
+  try {
+    const d = localStorage.getItem('jk_debtors');
+    const c = localStorage.getItem('jk_creditors');
+    const db = localStorage.getItem('jk_daybook');
+    const upd = localStorage.getItem('jk_updated');
+    if (!d && !c && !db) return false;
+    if (d)  DB.debtors   = JSON.parse(d);
+    if (c)  DB.creditors = JSON.parse(c);
+    if (db) DB.daybook   = JSON.parse(db).map(r => ({
+      ...r,
+      rawDate: new Date(r.rawDate)
+    }));
+    if (upd) {
+      const dt = new Date(upd);
+      lastUpdated = 'Updated ' + dt.toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    }
+    return true;
+  } catch(e) { console.warn('Storage load failed:', e); return false; }
+}
+
+function clearStorage() {
+  localStorage.removeItem('jk_debtors');
+  localStorage.removeItem('jk_creditors');
+  localStorage.removeItem('jk_daybook');
+  localStorage.removeItem('jk_updated');
+}
+
+function refreshData() {
+  if (gAccessToken) {
+    // Token still in memory — just reload
+    loadFromDrive();
+  } else {
+    // Token expired — get new one silently (no popup, no login screen)
+    if (!window._tc) { initGoogleAuth(); setTimeout(refreshData, 1000); return; }
+    try {
+      // prompt:'' means silent — if user already consented before, no popup needed
+      window._tc.requestAccessToken({prompt: ''});
+    } catch(e) {
+      // Silent refresh failed — just show cached data and note
+      document.getElementById('hdr-sub').textContent = 'Showing saved data · ' + lastUpdated;
+    }
+  }
+}
+
+function toggleManual() {
+  const sec = document.getElementById('manual-section');
+  const lnk = document.getElementById('manual-toggle');
+  if (sec.style.display === 'none') {
+    sec.style.display = 'block';
+    lnk.textContent = 'Hide manual upload';
+  } else {
+    sec.style.display = 'none';
+    lnk.textContent = 'Having trouble? Upload files manually';
+  }
+}
+
+window.addEventListener('load',()=>{setTimeout(initGoogleAuth,800); autoLoad();});
+</script>
+</body>
+</html>
