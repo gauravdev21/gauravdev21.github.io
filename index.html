@@ -1128,24 +1128,22 @@ function sharePDF() {
 
     const viewer = document.createElement('div');
     viewer.id = 'pdf-viewer';
-    viewer.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#fff;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+    // Fix 1: Use 100vw/100vh and overflow hidden on body to prevent layout shift
+    viewer.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;background:#fff;overflow-y:auto;-webkit-overflow-scrolling:touch;';
     viewer.innerHTML = pdfHTML;
     document.body.appendChild(viewer);
+    // Prevent body scroll/layout shift when viewer is open
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
 
-    // Wire up back button inside viewer
+    // Wire up back button
     const backBtn = viewer.querySelector('#pdf-back-btn');
     if (backBtn) backBtn.onclick = closePdfViewer;
 
-    // Wire up print button
-    const printBtn = viewer.querySelector('#pdf-print-btn');
-    if (printBtn) printBtn.onclick = () => {
-      // Create blob URL and open for printing
-      const blob = new Blob([pdfHTML], {type:'text/html'});
-      const url = URL.createObjectURL(blob);
-      const w = window.open(url, '_blank');
-      if (w) { w.onload = () => { setTimeout(() => w.print(), 500); }; }
-      else { alert('Please allow popups to print. Or take a screenshot to share.'); }
-    };
+    // Wire up share button — use Web Share API for direct sharing
+    const shareBtn = viewer.querySelector('#pdf-share-btn');
+    if (shareBtn) shareBtn.onclick = () => shareAsPDF(pdfHTML, name);
 
     history.pushState({screen:'pdf'}, '');
   } catch(e) {
@@ -1156,7 +1154,46 @@ function sharePDF() {
 function closePdfViewer() {
   const viewer = document.getElementById('pdf-viewer');
   if (viewer) viewer.remove();
+  // Restore body
+  document.body.style.overflow = '';
+  document.body.style.position = '';
+  document.body.style.width = '';
   history.back();
+}
+
+async function shareAsPDF(htmlContent, partyName) {
+  try {
+    // Convert HTML to a blob and share using Web Share API
+    const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+
+    // Try native share with file (Android Chrome supports this)
+    if (navigator.canShare && navigator.share) {
+      const file = new File([htmlBlob], `Statement_${partyName.replace(/\s+/g,'_')}.html`, { type: 'text/html' });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: `Statement - ${partyName}`,
+          text: `JK Electricals — Statement for ${partyName}`,
+          files: [file]
+        });
+        return;
+      }
+    }
+
+    // Fallback: open print dialog
+    const blob = new Blob([htmlContent], {type:'text/html'});
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, '_blank');
+    if (w) { w.onload = () => setTimeout(() => w.print(), 500); }
+    else {
+      // Last resort: download the file
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Statement_${partyName.replace(/\s+/g,'_')}.html`;
+      a.click();
+    }
+  } catch(e) {
+    if (e.name !== 'AbortError') alert('Share failed: ' + e.message);
+  }
 }
 
 
@@ -1168,6 +1205,9 @@ window.addEventListener('popstate', function(e) {
   const viewer = document.getElementById('pdf-viewer');
   if (viewer) {
     viewer.remove();
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.width = '';
     return;
   }
   // Go back from drill screen
