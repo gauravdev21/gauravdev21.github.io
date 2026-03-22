@@ -1121,17 +1121,42 @@ function sharePDF() {
   </div>
   </body></html>`;
 
-  // Show full screen viewer inside the app
-  let viewer = document.getElementById('pdf-viewer');
-  if (!viewer) {
-    viewer = document.createElement('div');
+  try {
+    // Remove any existing viewer and recreate fresh each time
+    const old = document.getElementById('pdf-viewer');
+    if (old) old.remove();
+
+    const viewer = document.createElement('div');
     viewer.id = 'pdf-viewer';
-    viewer.style.cssText = 'display:none;position:fixed;inset:0;z-index:9999;background:#fff;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+    viewer.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#fff;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+    viewer.innerHTML = pdfHTML;
     document.body.appendChild(viewer);
+
+    // Wire up back button inside viewer
+    const backBtn = viewer.querySelector('#pdf-back-btn');
+    if (backBtn) backBtn.onclick = closePdfViewer;
+
+    // Wire up print button
+    const printBtn = viewer.querySelector('#pdf-print-btn');
+    if (printBtn) printBtn.onclick = () => {
+      // Create blob URL and open for printing
+      const blob = new Blob([pdfHTML], {type:'text/html'});
+      const url = URL.createObjectURL(blob);
+      const w = window.open(url, '_blank');
+      if (w) { w.onload = () => { setTimeout(() => w.print(), 500); }; }
+      else { alert('Please allow popups to print. Or take a screenshot to share.'); }
+    };
+
+    history.pushState({screen:'pdf'}, '');
+  } catch(e) {
+    alert('Could not open statement: ' + e.message);
   }
-  viewer.innerHTML = pdfHTML;
-  viewer.style.display = 'block';
-  history.pushState({screen:'pdf'}, '');
+}
+
+function closePdfViewer() {
+  const viewer = document.getElementById('pdf-viewer');
+  if (viewer) viewer.remove();
+  history.back();
 }
 
 
@@ -1141,8 +1166,8 @@ function sharePDF() {
 window.addEventListener('popstate', function(e) {
   // Close PDF viewer if open
   const viewer = document.getElementById('pdf-viewer');
-  if (viewer && viewer.style.display === 'block') {
-    viewer.style.display = 'none';
+  if (viewer) {
+    viewer.remove();
     return;
   }
   // Go back from drill screen
