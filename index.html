@@ -1011,7 +1011,7 @@ function toggleManual() {
 // ══════════════════════════════
 function sharePDF() {
   const d = window._drillData;
-  if (!d) return;
+  if (!d) { alert('No data to share.'); return; }
 
   const { name, isDebtor, closingBalance, primaryTxns, incomingTxns, others } = d;
   const today = new Date().toLocaleDateString('en-IN', {day:'2-digit', month:'long', year:'numeric'});
@@ -1019,200 +1019,151 @@ function sharePDF() {
   const incomingTotal = incomingTxns.reduce((s,r)=>s+(r.debit||r.credit),0);
 
   function rows(txns) {
-    if (!txns.length) return '<tr><td colspan="4" style="text-align:center;color:#888;padding:10px;font-size:13px;">No entries</td></tr>';
-    return txns.map((r,i) => `<tr style="background:${i%2===0?'#F9F9F9':'#fff'}">
-      <td style="padding:7px 10px;font-size:12px;border-bottom:1px solid #eee;">${r.dateStr}</td>
-      <td style="padding:7px 10px;font-size:12px;border-bottom:1px solid #eee;">${r.vnum||'—'}</td>
-      <td style="padding:7px 10px;font-size:12px;border-bottom:1px solid #eee;">${r.vtype}</td>
-      <td style="padding:7px 10px;font-size:12px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">${fmt(r.debit||r.credit)}</td>
-    </tr>`).join('');
+    if (!txns.length) return '<tr><td colspan="4" style="text-align:center;color:#888;padding:10px;">No entries</td></tr>';
+    return txns.map((r,i) => `
+      <tr style="background:${i%2===0?'#f9f9f9':'#fff'};">
+        <td>${r.dateStr}</td>
+        <td>${r.vnum||'—'}</td>
+        <td>${r.vtype}</td>
+        <td style="text-align:right;font-weight:600;">${fmt(r.debit||r.credit)}</td>
+      </tr>`).join('');
   }
 
-  function section(title, txns, total, totalLabel) {
+  function section(title, txns, total, lbl) {
     if (!txns.length) return '';
-    return `<div style="margin-bottom:24px;">
-      <div style="font-size:12px;font-weight:700;color:#075E54;text-transform:uppercase;letter-spacing:0.5px;border-left:4px solid #075E54;padding-left:10px;margin-bottom:10px;">${title}</div>
-      <table style="width:100%;border-collapse:collapse;">
-        <thead><tr style="background:#075E54;">
-          <th style="padding:8px 10px;font-size:11px;color:#fff;text-align:left;font-weight:600;">Date</th>
-          <th style="padding:8px 10px;font-size:11px;color:#fff;text-align:left;font-weight:600;">Voucher No.</th>
-          <th style="padding:8px 10px;font-size:11px;color:#fff;text-align:left;font-weight:600;">Type</th>
-          <th style="padding:8px 10px;font-size:11px;color:#fff;text-align:right;font-weight:600;">Amount</th>
-        </tr></thead>
+    return `
+      <h3 style="color:#075E54;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;border-left:4px solid #075E54;padding-left:8px;margin:20px 0 10px;">${title}</h3>
+      <table>
+        <thead><tr><th>Date</th><th>Voucher</th><th>Type</th><th style="text-align:right;">Amount</th></tr></thead>
         <tbody>${rows(txns)}</tbody>
-        <tfoot><tr style="background:#E8F5E9;">
-          <td colspan="3" style="padding:8px 10px;font-size:12px;font-weight:700;border-top:2px solid #075E54;">${totalLabel}</td>
-          <td style="padding:8px 10px;font-size:13px;font-weight:700;color:#075E54;text-align:right;border-top:2px solid #075E54;">${fmt(total)}</td>
-        </tr></tfoot>
-      </table>
-    </div>`;
+        <tfoot><tr><td colspan="3" style="font-weight:700;">${lbl}</td><td style="text-align:right;font-weight:700;color:#075E54;">${fmt(total)}</td></tr></tfoot>
+      </table>`;
   }
 
-  const pdfHTML = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Statement - ${name}</title>
   <style>
-    *{margin:0;padding:0;box-sizing:border-box;}
-    body{font-family:Arial,sans-serif;color:#111;background:#fff;padding:24px;}
-    @media print{
-      .no-print{display:none!important;}
-      body{padding:16px;}
-    }
+    body{font-family:Arial,sans-serif;padding:20px;color:#111;max-width:700px;margin:0 auto;}
+    table{width:100%;border-collapse:collapse;margin-bottom:4px;}
+    th{background:#075E54;color:#fff;padding:8px;font-size:12px;text-align:left;}
+    td{padding:7px 8px;font-size:12px;border-bottom:1px solid #eee;}
+    tfoot td{background:#e8f5e9;border-top:2px solid #075E54;}
+    .header{border-bottom:3px solid #075E54;padding-bottom:12px;margin-bottom:16px;display:flex;justify-content:space-between;}
+    .co{font-size:18px;font-weight:700;color:#075E54;}
+    .co-sub{font-size:11px;color:#888;margin-top:2px;}
+    .party-box{background:#f0faf8;border:1px solid #b2dfd8;border-radius:6px;padding:12px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;}
+    .party-name{font-size:15px;font-weight:700;}
+    .badge{background:#075E54;color:#fff;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;}
+    .summary{display:flex;gap:10px;margin-bottom:16px;}
+    .sum-card{flex:1;border:1px solid #ddd;border-radius:6px;padding:10px 12px;}
+    .sum-card.hl{background:#075E54;border-color:#075E54;}
+    .sum-lbl{font-size:10px;color:#888;text-transform:uppercase;margin-bottom:4px;}
+    .sum-card.hl .sum-lbl{color:rgba(255,255,255,0.7);}
+    .sum-val{font-size:16px;font-weight:700;}
+    .sum-card.hl .sum-val{color:#fff;}
+    .footer{margin-top:20px;border-top:1px solid #eee;padding-top:10px;display:flex;justify-content:space-between;font-size:11px;color:#888;}
   </style>
   </head><body>
-  <!-- Toolbar (hidden when printing) -->
-  <div class="no-print" style="position:fixed;top:0;left:0;right:0;background:#075E54;padding:10px 16px;display:flex;align-items:center;gap:10px;z-index:999;">
-    <button onclick="window.close()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:16px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:Arial;">‹ Back</button>
-    <span style="color:#fff;font-size:14px;font-weight:700;flex:1;">Statement — ${name}</span>
-    <button onclick="window.print()" style="background:#fff;color:#075E54;border:none;border-radius:16px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:Arial;">🖨 Print / PDF</button>
+  <div class="header">
+    <div><div class="co">JK Electricals</div>
+    <div class="co-sub">Shop No.3, Janki Bazar 41, G B Marg, Lucknow</div>
+    <div class="co-sub">📞 09235898036 | ✉ jkelectricalska@gmail.com</div></div>
+    <div style="text-align:right;"><div style="font-size:14px;font-weight:700;color:#075E54;">${isDebtor?'Debtor Statement':'Creditor Statement'}</div>
+    <div style="font-size:11px;color:#888;">${today}</div></div>
   </div>
-
-  <div style="margin-top:52px;">
-  <!-- Header -->
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #075E54;padding-bottom:14px;margin-bottom:20px;">
-    <div>
-      <div style="font-size:20px;font-weight:700;color:#075E54;">JK Electricals</div>
-      <div style="font-size:11px;color:#888;margin-top:3px;">Shop No.3, Janki Bazar 41, G B Marg, Lucknow</div>
-      <div style="font-size:11px;color:#888;margin-top:2px;">📞 09235898036 &nbsp;|&nbsp; ✉ jkelectricalska@gmail.com</div>
-    </div>
-    <div style="text-align:right;">
-      <div style="font-size:15px;font-weight:700;color:#075E54;">${isDebtor?'Debtor Statement':'Creditor Statement'}</div>
-      <div style="font-size:11px;color:#888;margin-top:3px;">Date: ${today}</div>
-    </div>
+  <div class="party-box">
+    <div><div style="font-size:11px;color:#888;">Party</div><div class="party-name">${name}</div></div>
+    <div class="badge">${isDebtor?'DEBTOR':'CREDITOR'}</div>
   </div>
-
-  <!-- Party -->
-  <div style="background:#F0FAF8;border:1px solid #B2DFD8;border-radius:8px;padding:14px 18px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;">
-    <div>
-      <div style="font-size:11px;color:#888;margin-bottom:3px;">Party Name</div>
-      <div style="font-size:16px;font-weight:700;">${name}</div>
-    </div>
-    <div style="background:#075E54;color:#fff;padding:4px 12px;border-radius:12px;font-size:11px;font-weight:700;">${isDebtor?'DEBTOR':'CREDITOR'}</div>
+  <div class="summary">
+    <div class="sum-card"><div class="sum-lbl">${isDebtor?'Sales':'Purchases'}</div><div class="sum-val">${fmt(primaryTotal)}</div></div>
+    <div class="sum-card"><div class="sum-lbl">${isDebtor?'Received':'Paid'}</div><div class="sum-val">${fmt(incomingTotal)}</div></div>
+    <div class="sum-card hl"><div class="sum-lbl">Outstanding</div><div class="sum-val">${fmt(closingBalance)}</div></div>
   </div>
-
-  <!-- Summary -->
-  <div style="display:flex;gap:12px;margin-bottom:24px;">
-    <div style="flex:1;border:1px solid #E0E0E0;border-radius:8px;padding:12px 14px;">
-      <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;">${isDebtor?'Total Sales':'Total Purchases'}</div>
-      <div style="font-size:17px;font-weight:700;">${fmt(primaryTotal)}</div>
-    </div>
-    <div style="flex:1;border:1px solid #E0E0E0;border-radius:8px;padding:12px 14px;">
-      <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;">${isDebtor?'Total Received':'Total Paid'}</div>
-      <div style="font-size:17px;font-weight:700;">${fmt(incomingTotal)}</div>
-    </div>
-    <div style="flex:1;border:1px solid #075E54;border-radius:8px;padding:12px 14px;background:#075E54;">
-      <div style="font-size:10px;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;">Outstanding</div>
-      <div style="font-size:17px;font-weight:700;color:#fff;">${fmt(closingBalance)}</div>
-    </div>
-  </div>
-
   ${section(isDebtor?'Sales':'Purchases', primaryTxns, primaryTotal, isDebtor?'Total Sales':'Total Purchases')}
-  ${section(isDebtor?'Payments Received':'Payments Made', incomingTxns, incomingTotal, isDebtor?'Total Received':'Total Paid')}
+  ${section(isDebtor?'Payments Received':'Payments Made', incomingTxns, incomingTotal, isDebtor?'Total':'Total')}
   ${others.length ? section('Other Entries', others, others.reduce((s,r)=>s+(r.debit||r.credit),0), 'Total') : ''}
-
-  <!-- Footer -->
-  <div style="margin-top:24px;border-top:1px solid #E0E0E0;padding-top:12px;display:flex;justify-content:space-between;align-items:center;">
-    <div style="font-size:10px;color:#888;">Generated from JK Electricals Dashboard<br>All amounts in Indian Rupees (₹)</div>
-    <div style="text-align:right;">
-      <div style="font-size:10px;color:#888;">Outstanding Balance</div>
-      <div style="font-size:18px;font-weight:700;color:#075E54;">${fmt(closingBalance)}</div>
-    </div>
-  </div>
+  <div class="footer">
+    <span>JK Electricals Dashboard</span>
+    <span>Outstanding: <strong style="color:#075E54;">${fmt(closingBalance)}</strong></span>
   </div>
   </body></html>`;
 
-  try {
-    // Remove any existing viewer and recreate fresh each time
-    const old = document.getElementById('pdf-viewer');
-    if (old) old.remove();
+  // Store HTML in localStorage and navigate to /statement page
+  localStorage.setItem('jk_statement_html', html);
+  localStorage.setItem('jk_statement_name', name);
 
-    const viewer = document.createElement('div');
-    viewer.id = 'pdf-viewer';
-    // Fix 1: Use 100vw/100vh and overflow hidden on body to prevent layout shift
-    viewer.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;background:#fff;overflow-y:auto;-webkit-overflow-scrolling:touch;';
-    viewer.innerHTML = pdfHTML;
-    document.body.appendChild(viewer);
-    // Prevent body scroll/layout shift when viewer is open
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.width = '100%';
+  // Create a full screen overlay with an iframe
+  const overlay = document.createElement('div');
+  overlay.id = 'pdf-viewer';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;background:#fff;display:flex;flex-direction:column;';
 
-    // Wire up back button
-    const backBtn = viewer.querySelector('#pdf-back-btn');
-    if (backBtn) backBtn.onclick = closePdfViewer;
+  // Toolbar
+  const toolbar = document.createElement('div');
+  toolbar.style.cssText = 'background:#075E54;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;';
+  toolbar.innerHTML = `
+    <button id="pdf-back" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:14px;padding:6px 14px;font-size:13px;font-weight:700;font-family:Arial;cursor:pointer;">‹ Back</button>
+    <span style="color:#fff;font-size:13px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span>
+    <button id="pdf-share" style="background:#fff;color:#075E54;border:none;border-radius:14px;padding:6px 14px;font-size:13px;font-weight:700;font-family:Arial;cursor:pointer;">📤 Share</button>`;
 
-    // Wire up share button — use Web Share API for direct sharing
-    const shareBtn = viewer.querySelector('#pdf-share-btn');
-    if (shareBtn) shareBtn.onclick = () => shareAsPDF(pdfHTML, name);
+  // Iframe to show the statement
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'flex:1;border:none;width:100%;';
+  iframe.srcdoc = html;
 
-    history.pushState({screen:'pdf'}, '');
-  } catch(e) {
-    alert('Could not open statement: ' + e.message);
-  }
+  overlay.appendChild(toolbar);
+  overlay.appendChild(iframe);
+  document.body.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+
+  // Back button
+  document.getElementById('pdf-back').onclick = () => {
+    overlay.remove();
+    document.body.style.overflow = '';
+  };
+
+  // Share button — use Web Share API
+  document.getElementById('pdf-share').onclick = async () => {
+    const btn = document.getElementById('pdf-share');
+    btn.textContent = 'Preparing...';
+    btn.disabled = true;
+    try {
+      // Generate the HTML as a file
+      const blob = new Blob([html], { type: 'text/html' });
+      const fileName = 'JKE_' + name.replace(/[^a-zA-Z0-9]/g,'_') + '.html';
+      const file = new File([blob], fileName, { type: 'text/html' });
+
+      // Try Web Share API with file
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ title: 'Statement - ' + name, files: [file] });
+      } else if (navigator.share) {
+        // Share as text link fallback
+        await navigator.share({ title: 'Statement - ' + name, text: 'JK Electricals statement for ' + name });
+      } else {
+        // Download fallback
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = fileName; a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch(e) {
+      if (e.name !== 'AbortError') {
+        // Last resort: print
+        iframe.contentWindow.print();
+      }
+    } finally {
+      btn.textContent = '📤 Share';
+      btn.disabled = false;
+    }
+  };
+
+  history.pushState({screen:'pdf'}, '');
 }
 
 function closePdfViewer() {
-  const viewer = document.getElementById('pdf-viewer');
-  if (viewer) viewer.remove();
-  // Restore body
-  document.body.style.overflow = '';
-  document.body.style.position = '';
-  document.body.style.width = '';
-  history.back();
-}
-
-async function shareAsPDF(htmlContent, partyName) {
-  const shareBtn = document.getElementById('pdf-share-btn');
-  if (shareBtn) { shareBtn.textContent = 'Preparing...'; shareBtn.disabled = true; }
-
-  try {
-    // Get the statement content div inside viewer (excludes toolbar)
-    const viewer = document.getElementById('pdf-viewer');
-    const contentDiv = viewer.querySelector('#pdf-content');
-
-    // Load html2canvas dynamically
-    if (!window.html2canvas) {
-      await new Promise((res, rej) => {
-        const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        s.onload = res; s.onerror = rej;
-        document.head.appendChild(s);
-      });
-    }
-
-    // Render to canvas
-    const canvas = await html2canvas(contentDiv, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: '#ffffff',
-      logging: false
-    });
-
-    // Convert to blob
-    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.92));
-    const fileName = `JKE_Statement_${partyName.replace(/[^a-zA-Z0-9]/g,'_')}.jpg`;
-    const file = new File([blob], fileName, { type: 'image/jpeg' });
-
-    // Share via Web Share API
-    if (navigator.share && navigator.canShare({ files: [file] })) {
-      await navigator.share({
-        title: `Statement - ${partyName}`,
-        files: [file]
-      });
-    } else {
-      // Fallback: download the image
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-  } catch(e) {
-    if (e.name !== 'AbortError') alert('Share failed: ' + e.message);
-  } finally {
-    if (shareBtn) { shareBtn.textContent = '📤 Share'; shareBtn.disabled = false; }
-  }
+  const v = document.getElementById('pdf-viewer');
+  if (v) { v.remove(); document.body.style.overflow = ''; }
 }
 
 
@@ -1225,8 +1176,6 @@ window.addEventListener('popstate', function(e) {
   if (viewer) {
     viewer.remove();
     document.body.style.overflow = '';
-    document.body.style.position = '';
-    document.body.style.width = '';
     return;
   }
   // Go back from drill screen
