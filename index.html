@@ -739,16 +739,36 @@ function parsePartyFile(wb) {
 
 function parseDayBook(wb) {
   const ws=wb.Sheets[wb.SheetNames[0]];
-  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,cellDates:true});
+  // Do NOT use cellDates — causes timezone shift. Parse serial numbers manually.
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,cellDates:false});
   const result=[];
   let started=false;
+  let _debugDone=false;
   for(const row of rows){
     if(!started){if(row[0]==='Date'&&row[1]==='Particulars'){started=true;}continue;}
     if(!row[0]&&!row[1]) continue;
     if(row[4]==='Inwards Qty') continue;
-    const rawDate=row[0];
-    if(!(rawDate instanceof Date)) continue;
+    const dateVal=row[0];
+    if(!dateVal) continue;
+    // Parse Excel serial number to local date (no timezone shift)
+    let rawDate;
+    if(typeof dateVal === 'number'){
+      // Excel serial: days since 1900-01-01 (with Lotus bug: 1900 falsely treated as leap year)
+      const d = new Date(Math.round((dateVal - 25569) * 86400 * 1000));
+      rawDate = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    } else if(dateVal instanceof Date){
+      // Use UTC methods — XLSX Date objects are UTC midnight, local getFullYear can give wrong day
+      rawDate = new Date(dateVal.getUTCFullYear(), dateVal.getUTCMonth(), dateVal.getUTCDate());
+    } else if(typeof dateVal === 'string' && dateVal.match(/\d{4}-\d{2}-\d{2}/)){
+      const parts = dateVal.split('-');
+      rawDate = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+    } else { continue; }
     const dateStr=rawDate.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+    if(!_debugDone && result.length < 3){
+      console.log('dateVal type:', typeof dateVal, 'value:', dateVal, 'instanceof Date:', dateVal instanceof Date);
+      console.log('rawDate:', rawDate, 'dateStr:', dateStr);
+      if(result.length===2) _debugDone=true;
+    }
     const party=String(row[1]||'').replace(/_x000D_\n_x000D_\n/g,'').trim();
     const vtype=String(row[2]||'').trim(),vnum=String(row[3]||'').trim();
     const debit=parseFloat(row[4])||0,credit=parseFloat(row[5])||0;
@@ -834,7 +854,7 @@ function renderMain() {
   renderParties('creditors',DB.creditors);
   buildMonthChips();
   renderDaybook('','');
-  renderSalesSummary();
+  renderSales();
 
   document.getElementById('debtors-count').textContent=DB.debtors.length+' parties';
   document.getElementById('creditors-count').textContent=DB.creditors.length+' parties';
