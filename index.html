@@ -527,6 +527,12 @@ let currentView = 'daybook';
 function el(id) { return document.getElementById(id); }
 function show(id, val) { const e = document.getElementById(id); if(e) e.style.display = val; }
 
+
+// Safe name for use in onclick attributes
+function safeName(name) {
+  return name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
 // ══════════════════════════════
 // SCREENS
 // ══════════════════════════════
@@ -852,7 +858,7 @@ function renderParties(type,data) {
     const txns=DB.daybook.filter(t=>t.party.toLowerCase()===r.name.toLowerCase());
     const initials=r.name.trim().split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
     const badge = isDebt ? getOverdueBadge(r.name) : '';
-    return `<div class="party-item" onclick="drillDown('${type}','${r.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}',${r.amount})">
+    return `<div class="party-item" onclick="drillDown('${type}','${safeName(r.name)}',${r.amount})">
       <div class="party-avatar ${isDebt?'':'red'}">${initials}</div>
       <div class="party-info">
         <div class="party-name-text">${r.name}${badge}</div>
@@ -1016,13 +1022,30 @@ function toggleDebtorsView(mode) {
 function renderAgeing() {
   const el = document.getElementById('list-ageing');
 
-  // For each debtor, find days since last payment
+  // For each debtor, find days since last receipt/payment
   const buckets = { b0: [], b30: [], b60: [], b90: [] };
 
   DB.debtors.forEach(r => {
-    const last = getLastPayment(r.name, true);
-    const days = last ? getDaysSince(last.rawDate) : 999;
-    const entry = { ...r, days, last };
+    const pmts = DB.daybook.filter(t =>
+      t.party.toLowerCase() === r.name.toLowerCase() &&
+      ['Receipt','Receipts'].includes(t.vtype)
+    ).sort((a,b) => b.rawDate - a.rawDate);
+
+    let days = 999;
+    if (pmts.length) {
+      days = Math.floor((new Date() - pmts[0].rawDate) / (1000*60*60*24));
+    } else {
+      // No payment — use oldest sale date
+      const sales = DB.daybook.filter(t =>
+        t.party.toLowerCase() === r.name.toLowerCase() && t.vtype === 'Sales'
+      );
+      if (sales.length) {
+        const oldest = new Date(Math.min(...sales.map(t=>t.rawDate)));
+        days = Math.floor((new Date() - oldest) / (1000*60*60*24));
+      }
+    }
+
+    const entry = { ...r, days };
     if      (days <= 30)  buckets.b0.push(entry);
     else if (days <= 60)  buckets.b30.push(entry);
     else if (days <= 90)  buckets.b60.push(entry);
@@ -1035,7 +1058,7 @@ function renderAgeing() {
     const rows = entries.map(r => {
       const initials = r.name.trim().split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
       const daysText = r.days === 999 ? 'No payment' : r.days + 'd ago';
-      return `<div class="party-item" onclick="drillDown('debtors','${r.name.replace(/\/g,'\\').replace(/'/g,"\'")}',${r.amount})">
+      return `<div class="party-item" onclick="drillDown('debtors','${safeName(r.name)}',${r.amount})">
         <div class="party-avatar" style="background:${color};">${initials}</div>
         <div class="party-info">
           <div class="party-name-text">${r.name}</div>
@@ -1064,10 +1087,10 @@ function renderAgeing() {
     bucketHTML('🚨 90+ days',   '#7B0000', '#FCE4EC', buckets.b90);
 
   el.innerHTML = (
-    bucketHTML('✅ 0–30 days',  '#1A7A50', '#EBF7F2', buckets.b0) +
-    bucketHTML('⚠️ 31–60 days', '#E65100', '#FFF3E0', buckets.b30) +
+    bucketHTML('🚨 90+ days',   '#7B0000', '#FCE4EC', buckets.b90) +
     bucketHTML('🔴 61–90 days', '#C62828', '#FFEBEE', buckets.b60) +
-    bucketHTML('🚨 90+ days',   '#7B0000', '#FCE4EC', buckets.b90)
+    bucketHTML('⚠️ 31–60 days', '#E65100', '#FFF3E0', buckets.b30) +
+    bucketHTML('✅ 0–30 days',  '#1A7A50', '#EBF7F2', buckets.b0)
   ) || '<div style="padding:20px;text-align:center;color:var(--wa-muted);font-size:13px;">No debtor data</div>';
 }
 
