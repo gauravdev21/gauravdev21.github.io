@@ -685,6 +685,8 @@ function autoLoad() {
   if (loadFromStorage()) {
     // Restore summary time from storage
     const upd = localStorage.getItem('jk_updated');
+    const fileUpd = localStorage.getItem('jk_file_updated');
+    if (fileUpd) lastUpdated = fileUpd;
     if (upd) {
       const dt = new Date(upd);
       document.getElementById('s-time').textContent = dt.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
@@ -907,7 +909,7 @@ function drillDown(type,name,closingBalance) {
   document.getElementById('hdr-name').textContent=name;
   document.getElementById('hdr-sub').textContent=isDebtor?'Debtor':'Creditor';
   // Store current drill data for sharing
-  window._drillData = { name, type, closingBalance, isDebtor, primaryTxns: [...primaryTxns], incomingTxns: [...incomingTxns], others: [...others] };
+  window._drillData = { name, type, closingBalance, isDebtor, primaryTxns: [...primaryTxns], incomingTxns: [...paymentTxns], others: [...others] };
 }
 
 // ══════════════════════════════
