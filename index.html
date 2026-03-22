@@ -898,6 +898,8 @@ function drillDown(type,name,closingBalance) {
   show('back-btn','block');
   show('share-btn','block');
   show('refresh-btn','none');
+  // Push state so hardware back button goes to main screen not closes app
+  history.pushState({screen:'drill'}, '');
   const initials=name.trim().split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
   document.getElementById('hdr-avatar').textContent=initials;
   document.getElementById('hdr-name').textContent=name;
@@ -1150,16 +1152,46 @@ function sharePDF() {
 </body>
 </html>`;
 
-  // Open in new window and trigger print/save as PDF
-  const win = window.open('', '_blank');
-  win.document.write(html);
-  win.document.close();
-  win.onload = () => {
-    setTimeout(() => {
-      win.print(); // On mobile this shows Save as PDF + Share options
-    }, 500);
-  };
+  // Create hidden iframe for printing (works on mobile without popup blocker)
+  let iframe = document.getElementById('print-iframe');
+  if (!iframe) {
+    iframe = document.createElement('iframe');
+    iframe.id = 'print-iframe';
+    iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;z-index:9999;background:#fff;';
+    document.body.appendChild(iframe);
+  }
+
+  // Write HTML into iframe
+  iframe.contentDocument.open();
+  iframe.contentDocument.write(html);
+  iframe.contentDocument.close();
+  iframe.style.display = 'block';
+
+  // Add close button inside iframe
+  const closeBtn = iframe.contentDocument.createElement('button');
+  closeBtn.textContent = '✕ Close';
+  closeBtn.style.cssText = 'position:fixed;top:12px;right:12px;background:#075E54;color:#fff;border:none;border-radius:20px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;z-index:99999;font-family:Arial,sans-serif;';
+  closeBtn.onclick = () => { iframe.style.display = 'none'; };
+  iframe.contentDocument.body.appendChild(closeBtn);
+
+  // Add print button
+  const printBtn = iframe.contentDocument.createElement('button');
+  printBtn.textContent = '🖨 Save / Share PDF';
+  printBtn.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#075E54;color:#fff;border:none;border-radius:24px;padding:14px 28px;font-size:14px;font-weight:700;cursor:pointer;z-index:99999;font-family:Arial,sans-serif;box-shadow:0 4px 12px rgba(0,0,0,0.3);white-space:nowrap;';
+  printBtn.onclick = () => { iframe.contentWindow.print(); };
+  iframe.contentDocument.body.appendChild(printBtn);
 }
+
+
+// ══════════════════════════════
+// HARDWARE BACK BUTTON HANDLER
+// ══════════════════════════════
+window.addEventListener('popstate', function(e) {
+  const drillVisible = document.getElementById('screen-drill').classList.contains('active');
+  if (drillVisible) {
+    goBack();
+  }
+});
 
 window.addEventListener('load',()=>{setTimeout(initGoogleAuth,800); autoLoad();});
 </script>
