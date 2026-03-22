@@ -743,7 +743,6 @@ function parseDayBook(wb) {
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,cellDates:false});
   const result=[];
   let started=false;
-  let _debugCount=0;
   for(const row of rows){
     if(!started){if(row[0]==='Date'&&row[1]==='Particulars'){started=true;}continue;}
     if(!row[0]&&!row[1]) continue;
@@ -757,14 +756,15 @@ function parseDayBook(wb) {
       const d = new Date(Math.round((dateVal - 25569) * 86400 * 1000));
       rawDate = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
     } else if(dateVal instanceof Date){
-      // Use UTC methods — XLSX Date objects are UTC midnight, local getFullYear can give wrong day
-      rawDate = new Date(dateVal.getUTCFullYear(), dateVal.getUTCMonth(), dateVal.getUTCDate());
+      // XLSX.js returns dates with floating point seconds (e.g. 23:59:50 instead of 00:00:00)
+      // Round to nearest day by adding 5 minutes then extracting local date parts
+      const rounded = new Date(dateVal.getTime() + 5 * 60 * 1000);
+      rawDate = new Date(rounded.getFullYear(), rounded.getMonth(), rounded.getDate());
     } else if(typeof dateVal === 'string' && dateVal.match(/\d{4}-\d{2}-\d{2}/)){
       const parts = dateVal.split('-');
       rawDate = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
     } else { continue; }
     const dateStr=rawDate.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
-    if(_debugCount < 3){ console.log('[DATE DEBUG]', {dateVal, typeOf: typeof dateVal, isDate: dateVal instanceof Date, rawDate: rawDate.toString(), dateStr}); _debugCount++; }
 
     const party=String(row[1]||'').replace(/_x000D_\n_x000D_\n/g,'').trim();
     const vtype=String(row[2]||'').trim(),vnum=String(row[3]||'').trim();
