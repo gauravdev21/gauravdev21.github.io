@@ -1011,175 +1011,128 @@ function sharePDF() {
 
   const { name, isDebtor, closingBalance, primaryTxns, incomingTxns, others } = d;
   const today = new Date().toLocaleDateString('en-IN', {day:'2-digit', month:'long', year:'numeric'});
-
-  // Get all daybook entries for this party
-  const allDaybook = DB.daybook
-    .filter(t => t.party.toLowerCase() === name.toLowerCase())
-    .sort((a,b) => a.rawDate - b.rawDate);
-
   const primaryTotal  = primaryTxns.reduce((s,r)=>s+(r.debit||r.credit),0);
   const incomingTotal = incomingTxns.reduce((s,r)=>s+(r.debit||r.credit),0);
 
-  function txnRows(txns) {
-    if (!txns.length) return `<tr><td colspan="4" style="text-align:center;color:#888;padding:12px;">No entries found</td></tr>`;
-    return txns.map((r,i) => `
-      <tr style="background:${i%2===0?'#F9F9F9':'#FFFFFF'}">
-        <td style="padding:8px 10px;font-size:12px;color:#444;">${r.dateStr}</td>
-        <td style="padding:8px 10px;font-size:12px;color:#444;">${r.vnum||'—'}</td>
-        <td style="padding:8px 10px;font-size:12px;color:#444;">${r.vtype}</td>
-        <td style="padding:8px 10px;font-size:12px;text-align:right;font-weight:600;color:#111;">${fmt(r.debit||r.credit)}</td>
-      </tr>`).join('');
+  function rows(txns) {
+    if (!txns.length) return '<tr><td colspan="4" style="text-align:center;color:#888;padding:10px;font-size:13px;">No entries</td></tr>';
+    return txns.map((r,i) => `<tr style="background:${i%2===0?'#F9F9F9':'#fff'}">
+      <td style="padding:7px 10px;font-size:12px;border-bottom:1px solid #eee;">${r.dateStr}</td>
+      <td style="padding:7px 10px;font-size:12px;border-bottom:1px solid #eee;">${r.vnum||'—'}</td>
+      <td style="padding:7px 10px;font-size:12px;border-bottom:1px solid #eee;">${r.vtype}</td>
+      <td style="padding:7px 10px;font-size:12px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">${fmt(r.debit||r.credit)}</td>
+    </tr>`).join('');
   }
 
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: Arial, sans-serif; color: #111; background: #fff; padding: 32px; }
-  .header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #075E54; padding-bottom:16px; margin-bottom:24px; }
-  .company { font-size:22px; font-weight:700; color:#075E54; }
-  .company-sub { font-size:12px; color:#888; margin-top:3px; }
-  .doc-title { text-align:right; }
-  .doc-title h2 { font-size:16px; color:#075E54; }
-  .doc-title p { font-size:12px; color:#888; margin-top:3px; }
-  .party-box { background:#F0FAF8; border:1px solid #B2DFD8; border-radius:8px; padding:16px 20px; margin-bottom:24px; display:flex; justify-content:space-between; align-items:center; }
-  .party-name { font-size:16px; font-weight:700; }
-  .party-type { font-size:12px; color:#075E54; font-weight:600; background:#075E54; color:#fff; padding:3px 10px; border-radius:12px; }
-  .summary-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:28px; }
-  .sum-card { border:1px solid #E0E0E0; border-radius:8px; padding:14px 16px; }
-  .sum-card.highlight { background:#075E54; border-color:#075E54; }
-  .sum-label { font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; }
-  .sum-card.highlight .sum-label { color:rgba(255,255,255,0.7); }
-  .sum-value { font-size:18px; font-weight:700; color:#111; }
-  .sum-card.highlight .sum-value { color:#fff; }
-  .section { margin-bottom:28px; }
-  .section-title { font-size:13px; font-weight:700; color:#075E54; text-transform:uppercase; letter-spacing:0.5px; border-left:4px solid #075E54; padding-left:10px; margin-bottom:12px; }
-  table { width:100%; border-collapse:collapse; }
-  thead tr { background:#075E54; }
-  thead th { padding:9px 10px; font-size:11px; color:#fff; text-align:left; font-weight:600; letter-spacing:0.3px; }
-  thead th:last-child { text-align:right; }
-  .total-row td { padding:9px 10px; font-weight:700; font-size:13px; background:#E8F5E9; border-top:2px solid #075E54; }
-  .total-row td:last-child { text-align:right; color:#075E54; }
-  .footer { margin-top:32px; border-top:1px solid #E0E0E0; padding-top:14px; display:flex; justify-content:space-between; align-items:center; }
-  .footer-left { font-size:11px; color:#888; }
-  .footer-right { font-size:11px; color:#888; text-align:right; }
-  @media print { body { padding: 20px; } }
-</style>
-</head>
-<body>
-  <div class="header">
-    <div>
-      <div class="company">JK Electricals</div>
-      <div class="company-sub">Shop No.3, Janki Bazar 41, G B Marg, Lucknow</div>
-      <div class="company-sub">📞 09235898036 &nbsp;|&nbsp; ✉ jkelectricalska@gmail.com</div>
-    </div>
-    <div class="doc-title">
-      <h2>${isDebtor ? 'Debtor Statement' : 'Creditor Statement'}</h2>
-      <p>Date: ${today}</p>
-    </div>
-  </div>
-
-  <div class="party-box">
-    <div>
-      <div style="font-size:11px;color:#888;margin-bottom:4px;">Party Name</div>
-      <div class="party-name">${name}</div>
-    </div>
-    <div class="party-type">${isDebtor ? 'DEBTOR' : 'CREDITOR'}</div>
-  </div>
-
-  <div class="summary-grid">
-    <div class="sum-card">
-      <div class="sum-label">${isDebtor ? 'Total Sales' : 'Total Purchases'}</div>
-      <div class="sum-value">${fmt(primaryTotal)}</div>
-    </div>
-    <div class="sum-card">
-      <div class="sum-label">${isDebtor ? 'Total Received' : 'Total Paid'}</div>
-      <div class="sum-value">${fmt(incomingTotal)}</div>
-    </div>
-    <div class="sum-card highlight">
-      <div class="sum-label">Outstanding Balance</div>
-      <div class="sum-value">${fmt(closingBalance)}</div>
-    </div>
-  </div>
-
-  ${primaryTxns.length ? `
-  <div class="section">
-    <div class="section-title">${isDebtor ? 'Sales' : 'Purchases'}</div>
-    <table>
-      <thead><tr>
-        <th>Date</th><th>Voucher No.</th><th>Type</th><th style="text-align:right;">Amount</th>
-      </tr></thead>
-      <tbody>${txnRows(primaryTxns)}</tbody>
-      <tfoot><tr class="total-row">
-        <td colspan="3">Total ${isDebtor ? 'Sales' : 'Purchases'}</td>
-        <td>${fmt(primaryTotal)}</td>
-      </tr></tfoot>
-    </table>
-  </div>` : ''}
-
-  ${incomingTxns.length ? `
-  <div class="section">
-    <div class="section-title">${isDebtor ? 'Payments Received' : 'Payments Made'}</div>
-    <table>
-      <thead><tr>
-        <th>Date</th><th>Voucher No.</th><th>Type</th><th style="text-align:right;">Amount</th>
-      </tr></thead>
-      <tbody>${txnRows(incomingTxns)}</tbody>
-      <tfoot><tr class="total-row">
-        <td colspan="3">Total ${isDebtor ? 'Received' : 'Paid'}</td>
-        <td>${fmt(incomingTotal)}</td>
-      </tr></tfoot>
-    </table>
-  </div>` : ''}
-
-  ${others.length ? `
-  <div class="section">
-    <div class="section-title">Other Entries</div>
-    <table>
-      <thead><tr>
-        <th>Date</th><th>Voucher No.</th><th>Type</th><th style="text-align:right;">Amount</th>
-      </tr></thead>
-      <tbody>${txnRows(others)}</tbody>
-    </table>
-  </div>` : ''}
-
-  <div class="footer">
-    <div class="footer-left">Generated from JK Electricals Dashboard<br>All amounts in Indian Rupees (₹)</div>
-    <div class="footer-right"><strong>Outstanding Balance</strong><br><span style="font-size:16px;font-weight:700;color:#075E54;">${fmt(closingBalance)}</span></div>
-  </div>
-</body>
-</html>`;
-
-  // Create hidden iframe for printing (works on mobile without popup blocker)
-  let iframe = document.getElementById('print-iframe');
-  if (!iframe) {
-    iframe = document.createElement('iframe');
-    iframe.id = 'print-iframe';
-    iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;z-index:9999;background:#fff;';
-    document.body.appendChild(iframe);
+  function section(title, txns, total, totalLabel) {
+    if (!txns.length) return '';
+    return `<div style="margin-bottom:24px;">
+      <div style="font-size:12px;font-weight:700;color:#075E54;text-transform:uppercase;letter-spacing:0.5px;border-left:4px solid #075E54;padding-left:10px;margin-bottom:10px;">${title}</div>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="background:#075E54;">
+          <th style="padding:8px 10px;font-size:11px;color:#fff;text-align:left;font-weight:600;">Date</th>
+          <th style="padding:8px 10px;font-size:11px;color:#fff;text-align:left;font-weight:600;">Voucher No.</th>
+          <th style="padding:8px 10px;font-size:11px;color:#fff;text-align:left;font-weight:600;">Type</th>
+          <th style="padding:8px 10px;font-size:11px;color:#fff;text-align:right;font-weight:600;">Amount</th>
+        </tr></thead>
+        <tbody>${rows(txns)}</tbody>
+        <tfoot><tr style="background:#E8F5E9;">
+          <td colspan="3" style="padding:8px 10px;font-size:12px;font-weight:700;border-top:2px solid #075E54;">${totalLabel}</td>
+          <td style="padding:8px 10px;font-size:13px;font-weight:700;color:#075E54;text-align:right;border-top:2px solid #075E54;">${fmt(total)}</td>
+        </tr></tfoot>
+      </table>
+    </div>`;
   }
 
-  // Write HTML into iframe
-  iframe.contentDocument.open();
-  iframe.contentDocument.write(html);
-  iframe.contentDocument.close();
-  iframe.style.display = 'block';
+  const pdfHTML = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Statement - ${name}</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:Arial,sans-serif;color:#111;background:#fff;padding:24px;}
+    @media print{
+      .no-print{display:none!important;}
+      body{padding:16px;}
+    }
+  </style>
+  </head><body>
+  <!-- Toolbar (hidden when printing) -->
+  <div class="no-print" style="position:fixed;top:0;left:0;right:0;background:#075E54;padding:10px 16px;display:flex;align-items:center;gap:10px;z-index:999;">
+    <button onclick="window.close()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:16px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:Arial;">‹ Back</button>
+    <span style="color:#fff;font-size:14px;font-weight:700;flex:1;">Statement — ${name}</span>
+    <button onclick="window.print()" style="background:#fff;color:#075E54;border:none;border-radius:16px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:Arial;">🖨 Print / PDF</button>
+  </div>
 
-  // Add close button inside iframe
-  const closeBtn = iframe.contentDocument.createElement('button');
-  closeBtn.textContent = '✕ Close';
-  closeBtn.style.cssText = 'position:fixed;top:12px;right:12px;background:#075E54;color:#fff;border:none;border-radius:20px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;z-index:99999;font-family:Arial,sans-serif;';
-  closeBtn.onclick = () => { iframe.style.display = 'none'; };
-  iframe.contentDocument.body.appendChild(closeBtn);
+  <div style="margin-top:52px;">
+  <!-- Header -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #075E54;padding-bottom:14px;margin-bottom:20px;">
+    <div>
+      <div style="font-size:20px;font-weight:700;color:#075E54;">JK Electricals</div>
+      <div style="font-size:11px;color:#888;margin-top:3px;">Shop No.3, Janki Bazar 41, G B Marg, Lucknow</div>
+      <div style="font-size:11px;color:#888;margin-top:2px;">📞 09235898036 &nbsp;|&nbsp; ✉ jkelectricalska@gmail.com</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:15px;font-weight:700;color:#075E54;">${isDebtor?'Debtor Statement':'Creditor Statement'}</div>
+      <div style="font-size:11px;color:#888;margin-top:3px;">Date: ${today}</div>
+    </div>
+  </div>
 
-  // Add print button
-  const printBtn = iframe.contentDocument.createElement('button');
-  printBtn.textContent = '🖨 Save / Share PDF';
-  printBtn.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#075E54;color:#fff;border:none;border-radius:24px;padding:14px 28px;font-size:14px;font-weight:700;cursor:pointer;z-index:99999;font-family:Arial,sans-serif;box-shadow:0 4px 12px rgba(0,0,0,0.3);white-space:nowrap;';
-  printBtn.onclick = () => { iframe.contentWindow.print(); };
-  iframe.contentDocument.body.appendChild(printBtn);
+  <!-- Party -->
+  <div style="background:#F0FAF8;border:1px solid #B2DFD8;border-radius:8px;padding:14px 18px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <div style="font-size:11px;color:#888;margin-bottom:3px;">Party Name</div>
+      <div style="font-size:16px;font-weight:700;">${name}</div>
+    </div>
+    <div style="background:#075E54;color:#fff;padding:4px 12px;border-radius:12px;font-size:11px;font-weight:700;">${isDebtor?'DEBTOR':'CREDITOR'}</div>
+  </div>
+
+  <!-- Summary -->
+  <div style="display:flex;gap:12px;margin-bottom:24px;">
+    <div style="flex:1;border:1px solid #E0E0E0;border-radius:8px;padding:12px 14px;">
+      <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;">${isDebtor?'Total Sales':'Total Purchases'}</div>
+      <div style="font-size:17px;font-weight:700;">${fmt(primaryTotal)}</div>
+    </div>
+    <div style="flex:1;border:1px solid #E0E0E0;border-radius:8px;padding:12px 14px;">
+      <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;">${isDebtor?'Total Received':'Total Paid'}</div>
+      <div style="font-size:17px;font-weight:700;">${fmt(incomingTotal)}</div>
+    </div>
+    <div style="flex:1;border:1px solid #075E54;border-radius:8px;padding:12px 14px;background:#075E54;">
+      <div style="font-size:10px;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;">Outstanding</div>
+      <div style="font-size:17px;font-weight:700;color:#fff;">${fmt(closingBalance)}</div>
+    </div>
+  </div>
+
+  ${section(isDebtor?'Sales':'Purchases', primaryTxns, primaryTotal, isDebtor?'Total Sales':'Total Purchases')}
+  ${section(isDebtor?'Payments Received':'Payments Made', incomingTxns, incomingTotal, isDebtor?'Total Received':'Total Paid')}
+  ${others.length ? section('Other Entries', others, others.reduce((s,r)=>s+(r.debit||r.credit),0), 'Total') : ''}
+
+  <!-- Footer -->
+  <div style="margin-top:24px;border-top:1px solid #E0E0E0;padding-top:12px;display:flex;justify-content:space-between;align-items:center;">
+    <div style="font-size:10px;color:#888;">Generated from JK Electricals Dashboard<br>All amounts in Indian Rupees (₹)</div>
+    <div style="text-align:right;">
+      <div style="font-size:10px;color:#888;">Outstanding Balance</div>
+      <div style="font-size:18px;font-weight:700;color:#075E54;">${fmt(closingBalance)}</div>
+    </div>
+  </div>
+  </div>
+  </body></html>`;
+
+  // Store in sessionStorage and open in same tab as new page
+  sessionStorage.setItem('jk_pdf_html', pdfHTML);
+
+  // Show PDF viewer screen
+  let viewer = document.getElementById('pdf-viewer');
+  if (!viewer) {
+    viewer = document.createElement('div');
+    viewer.id = 'pdf-viewer';
+    viewer.style.cssText = 'display:none;position:fixed;inset:0;z-index:500;background:#fff;overflow:auto;';
+    document.body.appendChild(viewer);
+  }
+  viewer.innerHTML = pdfHTML;
+  viewer.style.display = 'block';
+
+  // Override back button to close viewer
+  history.pushState({screen:'pdf'}, '');
 }
 
 
@@ -1187,6 +1140,13 @@ function sharePDF() {
 // HARDWARE BACK BUTTON HANDLER
 // ══════════════════════════════
 window.addEventListener('popstate', function(e) {
+  // Close PDF viewer if open
+  const viewer = document.getElementById('pdf-viewer');
+  if (viewer && viewer.style.display === 'block') {
+    viewer.style.display = 'none';
+    return;
+  }
+  // Go back from drill screen
   const drillVisible = document.getElementById('screen-drill').classList.contains('active');
   if (drillVisible) {
     goBack();
