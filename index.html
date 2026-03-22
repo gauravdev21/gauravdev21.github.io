@@ -460,6 +460,8 @@ function showUpload() {
 function goBack() {
   showScreen('screen-main');
   show('back-btn','none');
+  show('share-btn','none');
+  show('refresh-btn','block');
   document.getElementById('hdr-avatar').textContent = 'JK';
   document.getElementById('hdr-name').textContent = 'JK Electricals';
   document.getElementById('hdr-sub').textContent = lastUpdated;
@@ -1117,21 +1119,16 @@ function sharePDF() {
   </div>
   </body></html>`;
 
-  // Store in sessionStorage and open in same tab as new page
-  sessionStorage.setItem('jk_pdf_html', pdfHTML);
-
-  // Show PDF viewer screen
+  // Show full screen viewer inside the app
   let viewer = document.getElementById('pdf-viewer');
   if (!viewer) {
     viewer = document.createElement('div');
     viewer.id = 'pdf-viewer';
-    viewer.style.cssText = 'display:none;position:fixed;inset:0;z-index:500;background:#fff;overflow:auto;';
+    viewer.style.cssText = 'display:none;position:fixed;inset:0;z-index:9999;background:#fff;overflow-y:auto;-webkit-overflow-scrolling:touch;';
     document.body.appendChild(viewer);
   }
   viewer.innerHTML = pdfHTML;
   viewer.style.display = 'block';
-
-  // Override back button to close viewer
   history.pushState({screen:'pdf'}, '');
 }
 
