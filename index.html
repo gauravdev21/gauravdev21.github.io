@@ -857,7 +857,7 @@ function drillDown(type,name,closingBalance) {
   const purchases=txns.filter(t=>['Purchase','Purchases'].includes(t.vtype));
   const receipts=txns.filter(t=>['Receipt','Receipts'].includes(t.vtype));
   const payments=txns.filter(t=>['Payment','Payments'].includes(t.vtype));
-  const others=txns.filter(t=>!['Sales','Purchase','Purchases','Receipt','Receipts','Payment','Payments'].includes(t.vtype));
+  const others=txns.filter(t=>!['Sales','Purchase','Purchases','Receipt','Receipts','Payment','Payments','Sales Order','Purchase Order','Sales Orders','Purchase Orders'].includes(t.vtype));
   const primaryTxns=isDebtor?sales:purchases;
   const paymentTxns=isDebtor?receipts:payments;
   const primaryTotal=primaryTxns.reduce((s,r)=>s+(r.debit||r.credit),0);
