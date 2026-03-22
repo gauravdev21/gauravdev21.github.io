@@ -1162,37 +1162,56 @@ function closePdfViewer() {
 }
 
 async function shareAsPDF(htmlContent, partyName) {
-  try {
-    // Convert HTML to a blob and share using Web Share API
-    const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
+  const shareBtn = document.getElementById('pdf-share-btn');
+  if (shareBtn) { shareBtn.textContent = 'Preparing...'; shareBtn.disabled = true; }
 
-    // Try native share with file (Android Chrome supports this)
-    if (navigator.canShare && navigator.share) {
-      const file = new File([htmlBlob], `Statement_${partyName.replace(/\s+/g,'_')}.html`, { type: 'text/html' });
-      if (navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: `Statement - ${partyName}`,
-          text: `JK Electricals — Statement for ${partyName}`,
-          files: [file]
-        });
-        return;
-      }
+  try {
+    // Get the statement content div inside viewer (excludes toolbar)
+    const viewer = document.getElementById('pdf-viewer');
+    const contentDiv = viewer.querySelector('#pdf-content');
+
+    // Load html2canvas dynamically
+    if (!window.html2canvas) {
+      await new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+      });
     }
 
-    // Fallback: open print dialog
-    const blob = new Blob([htmlContent], {type:'text/html'});
-    const url = URL.createObjectURL(blob);
-    const w = window.open(url, '_blank');
-    if (w) { w.onload = () => setTimeout(() => w.print(), 500); }
-    else {
-      // Last resort: download the file
+    // Render to canvas
+    const canvas = await html2canvas(contentDiv, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false
+    });
+
+    // Convert to blob
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.92));
+    const fileName = `JKE_Statement_${partyName.replace(/[^a-zA-Z0-9]/g,'_')}.jpg`;
+    const file = new File([blob], fileName, { type: 'image/jpeg' });
+
+    // Share via Web Share API
+    if (navigator.share && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        title: `Statement - ${partyName}`,
+        files: [file]
+      });
+    } else {
+      // Fallback: download the image
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Statement_${partyName.replace(/\s+/g,'_')}.html`;
+      a.download = fileName;
       a.click();
+      URL.revokeObjectURL(url);
     }
   } catch(e) {
     if (e.name !== 'AbortError') alert('Share failed: ' + e.message);
+  } finally {
+    if (shareBtn) { shareBtn.textContent = '📤 Share'; shareBtn.disabled = false; }
   }
 }
 
