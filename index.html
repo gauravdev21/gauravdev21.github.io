@@ -131,6 +131,27 @@
   .party-info { flex:1; min-width:0; }
   .party-name-text { font-size:13px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .party-meta-text { font-size:11px; color:var(--wa-muted); margin-top:1px; }
+  .overdue-badge { font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; margin-left:6px; display:inline-block; }
+  .overdue-90 { background:#FFEBEE; color:#C62828; }
+  .overdue-60 { background:#FFF3E0; color:#E65100; }
+  .overdue-30 { background:#FFFDE7; color:#F9A825; }
+  .month-row { padding:12px 14px; border-bottom:1px solid var(--wa-border); }
+  .month-row:last-child { border-bottom:none; }
+  .month-row-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .month-name { font-size:13px; font-weight:700; }
+  .month-amt { font-size:14px; font-weight:700; color:var(--wa-green-dark); }
+  .month-bar-wrap { background:#F0F0F0; border-radius:4px; height:6px; overflow:hidden; }
+  .month-bar { height:6px; border-radius:4px; background:var(--wa-green-dark); }
+  .cf-row { padding:14px; border-bottom:1px solid var(--wa-border); }
+  .cf-row:last-child { border-bottom:none; }
+  .cf-month { font-size:13px; font-weight:700; margin-bottom:6px; }
+  .cf-line { display:flex; justify-content:space-between; font-size:12px; padding:2px 0; }
+  .cf-label { color:var(--wa-muted); }
+  .cf-in  { color:var(--wa-green-dark); font-weight:700; }
+  .cf-out { color:var(--wa-red); font-weight:700; }
+  .cf-net { font-weight:700; font-size:13px; }
+  .cf-net.pos { color:var(--wa-green-dark); }
+  .cf-net.neg { color:var(--wa-red); }
   .party-amt-wrap { text-align:right; }
   .party-amt-val { font-size:13px; font-weight:700; }
   .party-amt-val.green { color:var(--wa-green-dark); }
@@ -212,6 +233,31 @@
   /* ── LOADING ── */
   #loading { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:200; align-items:center; justify-content:center; }
   #loading.show { display:flex; }
+
+  /* Overdue badges */
+  .overdue-badge { display:inline-block; font-size:9px; font-weight:700; padding:1px 6px; border-radius:8px; margin-left:6px; vertical-align:middle; }
+  .overdue-90 { background:#FFEBEE; color:#C62828; }
+  .overdue-60 { background:#FFF3E0; color:#E65100; }
+  .overdue-30 { background:#FFFDE7; color:#F57F17; }
+
+  /* Last paid meta */
+  .last-paid { font-size:11px; margin-top:2px; }
+  .last-paid.good { color:var(--wa-green-dark); }
+  .last-paid.warn { color:#E65100; }
+  .last-paid.bad  { color:#C62828; }
+
+  /* Sales & cashflow tables */
+  .summary-table { width:100%; border-collapse:collapse; }
+  .summary-table th { background:var(--wa-teal); color:#fff; padding:8px 12px; font-size:11px; font-weight:700; text-align:left; letter-spacing:0.3px; }
+  .summary-table th:last-child { text-align:right; }
+  .summary-table td { padding:9px 12px; font-size:13px; border-bottom:1px solid var(--wa-border); }
+  .summary-table td:last-child { text-align:right; font-weight:700; }
+  .summary-table tr:last-child td { border-bottom:none; }
+  .summary-table tr:nth-child(even) td { background:var(--wa-panel); }
+  .trend-up { color:var(--wa-green-dark); }
+  .trend-dn { color:var(--wa-red); }
+  .cf-positive { color:var(--wa-green-dark); font-weight:700; }
+  .cf-negative { color:var(--wa-red); font-weight:700; }
   .loading-box { background:#fff; border-radius:12px; padding:20px 28px; display:flex; flex-direction:column; align-items:center; gap:12px; }
   .spin { width:28px; height:28px; border:3px solid var(--wa-border); border-top-color:var(--wa-teal); border-radius:50%; animation:sp 0.7s linear infinite; }
   @keyframes sp { to { transform:rotate(360deg); } }
@@ -344,6 +390,7 @@
       <button class="menu-btn active" id="btn-daybook"   onclick="switchView('daybook')">📒 Day Book</button>
       <button class="menu-btn"        id="btn-debtors"   onclick="switchView('debtors')">💰 Debtors</button>
       <button class="menu-btn"        id="btn-creditors" onclick="switchView('creditors')">🧾 Creditors</button>
+      <button class="menu-btn"        id="btn-sales"     onclick="switchView('sales')">📈 Sales</button>
     </div>
 
     <!-- DAY BOOK VIEW -->
@@ -361,13 +408,27 @@
 
     <!-- DEBTORS VIEW -->
     <div id="view-debtors" style="display:none;">
-      <div class="wa-search">
-        <span style="color:var(--wa-muted);font-size:14px;">🔍</span>
-        <input placeholder="Search buyer name..." oninput="filterParties('debtors',this.value)">
+      <!-- Toggle buttons -->
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <button id="btn-debtors-list" class="menu-btn active" onclick="toggleDebtorsView('list')" style="flex:1;">👥 All Debtors</button>
+        <button id="btn-debtors-age"  class="menu-btn"        onclick="toggleDebtorsView('age')"  style="flex:1;">📅 Ageing</button>
       </div>
-      <div class="list-bubble">
-        <div class="list-bubble-title">Buyers — Money to Collect <span id="debtors-count"></span></div>
-        <div id="list-debtors"></div>
+
+      <!-- List view -->
+      <div id="debtors-list-view">
+        <div class="wa-search">
+          <span style="color:var(--wa-muted);font-size:14px;">🔍</span>
+          <input placeholder="Search buyer name..." oninput="filterParties('debtors',this.value)">
+        </div>
+        <div class="list-bubble">
+          <div class="list-bubble-title">Buyers — Money to Collect <span id="debtors-count"></span></div>
+          <div id="list-debtors"></div>
+        </div>
+      </div>
+
+      <!-- Ageing view -->
+      <div id="debtors-age-view" style="display:none;">
+        <div class="list-bubble" id="list-ageing"></div>
       </div>
     </div>
 
@@ -380,6 +441,31 @@
       <div class="list-bubble">
         <div class="list-bubble-title">Vendors — Money to Pay <span id="creditors-count"></span></div>
         <div id="list-creditors"></div>
+      </div>
+    </div>
+
+    <!-- SALES SUMMARY VIEW -->
+    <div id="view-sales" style="display:none;">
+      <div class="list-bubble">
+        <div class="list-bubble-title">📈 Month-wise Sales <span id="sales-count"></span></div>
+        <div id="list-sales"></div>
+      </div>
+    </div>
+
+
+    <!-- SALES SUMMARY VIEW -->
+    <div id="view-sales" style="display:none;">
+      <div class="list-bubble">
+        <div class="list-bubble-title">📈 Month-wise Sales</div>
+        <div id="list-sales"></div>
+      </div>
+    </div>
+
+    <!-- CASH FLOW VIEW -->
+    <div id="view-cashflow" style="display:none;">
+      <div class="list-bubble">
+        <div class="list-bubble-title">💵 Monthly Cash Flow</div>
+        <div id="list-cashflow"></div>
       </div>
     </div>
 
@@ -661,6 +747,8 @@ function parseDayBook(wb) {
     const vtype=String(row[2]||'').trim(),vnum=String(row[3]||'').trim();
     const debit=parseFloat(row[4])||0,credit=parseFloat(row[5])||0;
     if(!party||(debit===0&&credit===0)) continue;
+    // Skip Sales Orders and Purchase Orders — not actual transactions
+    if(['Sales Order','Purchase Order','Sales Orders','Purchase Orders','Delivery Note','Receipt Note'].includes(vtype)) continue;
     result.push({rawDate,dateStr,party,vtype,vnum,debit,credit});
   }
   return result;
@@ -740,6 +828,7 @@ function renderMain() {
   renderParties('creditors',DB.creditors);
   buildMonthChips();
   renderDaybook('','');
+  renderSalesSummary();
 
   document.getElementById('debtors-count').textContent=DB.debtors.length+' parties';
   document.getElementById('creditors-count').textContent=DB.creditors.length+' parties';
@@ -762,10 +851,11 @@ function renderParties(type,data) {
   el.innerHTML=data.map(r=>{
     const txns=DB.daybook.filter(t=>t.party.toLowerCase()===r.name.toLowerCase());
     const initials=r.name.trim().split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    const badge = isDebt ? getOverdueBadge(r.name) : '';
     return `<div class="party-item" onclick="drillDown('${type}','${r.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}',${r.amount})">
       <div class="party-avatar ${isDebt?'':'red'}">${initials}</div>
       <div class="party-info">
-        <div class="party-name-text">${r.name}</div>
+        <div class="party-name-text">${r.name}${badge}</div>
         <div class="party-meta-text">${txns.length} transaction${txns.length!==1?'s':''}</div>
       </div>
       <div class="party-amt-wrap">
@@ -913,14 +1003,85 @@ function drillDown(type,name,closingBalance) {
 }
 
 // ══════════════════════════════
+// DEBTORS AGEING BUCKETS
+// ══════════════════════════════
+function toggleDebtorsView(mode) {
+  document.getElementById('debtors-list-view').style.display = mode==='list' ? 'block' : 'none';
+  document.getElementById('debtors-age-view').style.display  = mode==='age'  ? 'block' : 'none';
+  document.getElementById('btn-debtors-list').classList.toggle('active', mode==='list');
+  document.getElementById('btn-debtors-age').classList.toggle('active',  mode==='age');
+  if (mode==='age') renderAgeing();
+}
+
+function renderAgeing() {
+  const el = document.getElementById('list-ageing');
+
+  // For each debtor, find days since last payment
+  const buckets = { b0: [], b30: [], b60: [], b90: [] };
+
+  DB.debtors.forEach(r => {
+    const last = getLastPayment(r.name, true);
+    const days = last ? getDaysSince(last.rawDate) : 999;
+    const entry = { ...r, days, last };
+    if      (days <= 30)  buckets.b0.push(entry);
+    else if (days <= 60)  buckets.b30.push(entry);
+    else if (days <= 90)  buckets.b60.push(entry);
+    else                  buckets.b90.push(entry);
+  });
+
+  function bucketHTML(title, color, bgColor, entries) {
+    if (!entries.length) return '';
+    const total = entries.reduce((s,r)=>s+r.amount, 0);
+    const rows = entries.map(r => {
+      const initials = r.name.trim().split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+      const daysText = r.days === 999 ? 'No payment' : r.days + 'd ago';
+      return `<div class="party-item" onclick="drillDown('debtors','${r.name.replace(/\/g,'\\').replace(/'/g,"\'")}',${r.amount})">
+        <div class="party-avatar" style="background:${color};">${initials}</div>
+        <div class="party-info">
+          <div class="party-name-text">${r.name}</div>
+          <div class="last-paid" style="color:${color};">${daysText}</div>
+        </div>
+        <div class="party-amt-wrap">
+          <div class="party-amt-val green">${fmt(r.amount)}</div>
+        </div>
+        <div class="party-chevron">›</div>
+      </div>`;
+    }).join('');
+
+    return `<div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 14px;background:${bgColor};border-bottom:1px solid var(--wa-border);">
+        <div style="font-size:12px;font-weight:700;color:${color};">${title}</div>
+        <div style="font-size:12px;font-weight:700;color:${color};">${fmt(total)} · ${entries.length} parties</div>
+      </div>
+      ${rows}
+    </div>`;
+  }
+
+  const html =
+    bucketHTML('✅ 0–30 days',  '#1A7A50', '#EBF7F2', buckets.b0)  ||
+    bucketHTML('⚠️ 31–60 days', '#E65100', '#FFF3E0', buckets.b30) ||
+    bucketHTML('🔴 61–90 days', '#C62828', '#FFEBEE', buckets.b60) ||
+    bucketHTML('🚨 90+ days',   '#7B0000', '#FCE4EC', buckets.b90);
+
+  el.innerHTML = (
+    bucketHTML('✅ 0–30 days',  '#1A7A50', '#EBF7F2', buckets.b0) +
+    bucketHTML('⚠️ 31–60 days', '#E65100', '#FFF3E0', buckets.b30) +
+    bucketHTML('🔴 61–90 days', '#C62828', '#FFEBEE', buckets.b60) +
+    bucketHTML('🚨 90+ days',   '#7B0000', '#FCE4EC', buckets.b90)
+  ) || '<div style="padding:20px;text-align:center;color:var(--wa-muted);font-size:13px;">No debtor data</div>';
+}
+
+// ══════════════════════════════
 // VIEW SWITCHING
 // ══════════════════════════════
 function switchView(name) {
-  ['daybook','debtors','creditors'].forEach(v=>{
+  ['daybook','debtors','creditors','sales'].forEach(v=>{
     document.getElementById('view-'+v).style.display=v===name?'block':'none';
     document.getElementById('btn-'+v).classList.toggle('active',v===name);
   });
   currentView=name;
+  if (name==='sales') renderSales();
+  if (name==='cashflow') renderCashFlow();
 }
 
 // ══════════════════════════════
@@ -1123,35 +1284,31 @@ function sharePDF() {
     document.body.style.overflow = '';
   };
 
-  // Share button — use Web Share API
+  // Share button — generate PDF using jsPDF and share
   document.getElementById('pdf-share').onclick = async () => {
     const btn = document.getElementById('pdf-share');
     btn.textContent = 'Preparing...';
     btn.disabled = true;
     try {
-      // Generate the HTML as a file
-      const blob = new Blob([html], { type: 'text/html' });
-      const fileName = 'JKE_' + name.replace(/[^a-zA-Z0-9]/g,'_') + '.html';
-      const file = new File([blob], fileName, { type: 'text/html' });
+      // HTML share — no PDF generation needed
 
-      // Try Web Share API with file
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ title: 'Statement - ' + name, files: [file] });
-      } else if (navigator.share) {
-        // Share as text link fallback
-        await navigator.share({ title: 'Statement - ' + name, text: 'JK Electricals statement for ' + name });
+      // ── SAVE & SHARE ──
+      // Share as HTML file
+      const htmlBlob = new Blob([html], { type: 'text/html' });
+      const fileName = 'JKE_' + d.name.replace(/[^a-zA-Z0-9]/g,'_') + '.html';
+      const htmlFile = new File([htmlBlob], fileName, { type: 'text/html' });
+
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [htmlFile] })) {
+        await navigator.share({ title: 'Statement - ' + d.name, files: [htmlFile] });
       } else {
-        // Download fallback
-        const url = URL.createObjectURL(blob);
+        const url = URL.createObjectURL(htmlBlob);
         const a = document.createElement('a');
         a.href = url; a.download = fileName; a.click();
         URL.revokeObjectURL(url);
       }
+
     } catch(e) {
-      if (e.name !== 'AbortError') {
-        // Last resort: print
-        iframe.contentWindow.print();
-      }
+      if (e.name !== 'AbortError') alert('Could not generate PDF: ' + e.message);
     } finally {
       btn.textContent = '📤 Share';
       btn.disabled = false;
@@ -1184,6 +1341,108 @@ window.addEventListener('popstate', function(e) {
     goBack();
   }
 });
+
+
+// ══════════════════════════════
+// OVERDUE BADGE
+// ══════════════════════════════
+function getOverdueBadge(partyName) {
+  // Find last payment/receipt for this party
+  const payments = DB.daybook.filter(t =>
+    t.party.toLowerCase() === partyName.toLowerCase() &&
+    ['Receipt','Receipts','Payment','Payments'].includes(t.vtype)
+  );
+  if (!payments.length) {
+    // No payments at all — check first sale date
+    const sales = DB.daybook.filter(t =>
+      t.party.toLowerCase() === partyName.toLowerCase() &&
+      t.vtype === 'Sales'
+    );
+    if (!sales.length) return '';
+    const oldest = new Date(Math.min(...sales.map(t=>t.rawDate)));
+    const days = Math.floor((new Date() - oldest) / (1000*60*60*24));
+    if (days >= 90) return '<span class="overdue-badge overdue-90">90+ days</span>';
+    if (days >= 60) return '<span class="overdue-badge overdue-60">60+ days</span>';
+    if (days >= 30) return '<span class="overdue-badge overdue-30">30+ days</span>';
+    return '';
+  }
+  const lastPayment = new Date(Math.max(...payments.map(t=>t.rawDate)));
+  const days = Math.floor((new Date() - lastPayment) / (1000*60*60*24));
+  if (days >= 90) return '<span class="overdue-badge overdue-90">90+ days</span>';
+  if (days >= 60) return '<span class="overdue-badge overdue-60">60+ days</span>';
+  if (days >= 30) return '<span class="overdue-badge overdue-30">30+ days</span>';
+  return '';
+}
+
+// ══════════════════════════════
+// SALES SUMMARY
+// ══════════════════════════════
+function renderSales() {
+  const sales = DB.daybook.filter(t => t.vtype === 'Sales');
+  if (!sales.length) {
+    document.getElementById('list-sales').innerHTML = '<div style="padding:20px;text-align:center;color:var(--wa-muted);font-size:13px;">No sales data</div>';
+    return;
+  }
+  // Group by month
+  const months = {};
+  sales.forEach(t => {
+    const k = t.rawDate.toLocaleDateString('en-IN',{month:'short',year:'numeric'});
+    months[k] = (months[k]||0) + (t.debit||t.credit);
+  });
+  const entries = Object.entries(months).reverse();
+  const maxVal = Math.max(...entries.map(([,v])=>v));
+  const total = entries.reduce((s,[,v])=>s+v,0);
+
+  document.getElementById('list-sales').innerHTML = entries.map(([month, amt]) => {
+    const pct = Math.round((amt/maxVal)*100);
+    return `<div class="month-row">
+      <div class="month-row-top">
+        <div class="month-name">${month}</div>
+        <div class="month-amt">${fmt(amt)}</div>
+      </div>
+      <div class="month-bar-wrap"><div class="month-bar" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join('') +
+  `<div style="padding:12px 14px;background:var(--wa-panel);display:flex;justify-content:space-between;">
+    <span style="font-size:12px;font-weight:700;color:var(--wa-muted);">TOTAL SALES (YTD)</span>
+    <span style="font-size:14px;font-weight:700;color:var(--wa-green-dark);">${fmt(total)}</span>
+  </div>`;
+}
+
+// ══════════════════════════════
+// CASH FLOW
+// ══════════════════════════════
+function renderCashFlow() {
+  if (!DB.daybook.length) {
+    document.getElementById('list-cashflow').innerHTML = '<div style="padding:20px;text-align:center;color:var(--wa-muted);font-size:13px;">No data</div>';
+    return;
+  }
+  // Group by month
+  const months = {};
+  DB.daybook.forEach(t => {
+    const k = t.rawDate.toLocaleDateString('en-IN',{month:'short',year:'numeric'});
+    if (!months[k]) months[k] = { in:0, out:0 };
+    // Inflows: Sales + Receipts
+    if (['Sales','Receipt','Receipts'].includes(t.vtype)) months[k].in += t.debit||0;
+    // Outflows: Purchase + Payments
+    if (['Purchase','Purchases','Payment','Payments'].includes(t.vtype)) months[k].out += t.credit||t.debit||0;
+  });
+
+  const entries = Object.entries(months).reverse();
+  document.getElementById('list-cashflow').innerHTML = entries.map(([month, cf]) => {
+    const net = cf.in - cf.out;
+    const isPos = net >= 0;
+    return `<div class="cf-row">
+      <div class="cf-month">${month}</div>
+      <div class="cf-line"><span class="cf-label">💰 Collected</span><span class="cf-in">${fmt(cf.in)}</span></div>
+      <div class="cf-line"><span class="cf-label">🧾 Paid</span><span class="cf-out">${fmt(cf.out)}</span></div>
+      <div class="cf-line" style="margin-top:4px;border-top:1px solid var(--wa-border);padding-top:4px;">
+        <span style="font-size:12px;font-weight:700;color:var(--wa-muted);">Net</span>
+        <span class="cf-net ${isPos?'pos':'neg'}">${isPos?'+':''}${fmt(Math.abs(net))}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
 
 window.addEventListener('load',()=>{setTimeout(initGoogleAuth,800); autoLoad();});
 </script>
