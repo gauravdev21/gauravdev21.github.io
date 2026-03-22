@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>JK Electricals</title>
+<title>JK Electricals Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <meta name="theme-color" content="#075E54">
-<meta name="description" content="JK Electricals — Private business dashboard. Privacy Policy: https://gauravdev21.github.io/privacy.html">
+<meta name="description" content="JK Electricals Dashboard — Private business dashboard. Privacy Policy: https://gauravdev21.github.io/privacy.html">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -220,7 +220,7 @@
 </head>
 <body>
 
-<h1 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">JK Electricals</h1>
+<h1 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">JK Electricals Dashboard</h1>
 <div id="loading"><div class="loading-box"><div class="spin"></div><p class="spin-lbl">Loading...</p></div></div>
 
 <!-- ══════════════════════════
@@ -230,7 +230,7 @@
   <div class="wa-back" id="back-btn" onclick="goBack()">‹</div>
   <div class="wa-avatar" id="hdr-avatar">JK</div>
   <div class="wa-header-info">
-    <div class="wa-header-name" id="hdr-name">JK Electricals</div>
+    <div class="wa-header-name" id="hdr-name">JK Electricals Dashboard</div>
     <div class="wa-header-sub" id="hdr-sub">Upload files to begin</div>
   </div>
   <div class="wa-header-actions">
@@ -313,7 +313,7 @@
     </div>
 
   <div style="text-align:center;padding:8px 0 20px;">
-    <p style="font-size:12px;color:#888;margin-bottom:6px;font-weight:bold;">JK Electricals</p>
+    <p style="font-size:12px;color:#888;margin-bottom:6px;font-weight:bold;">JK Electricals Dashboard</p>
     <a href="https://gauravdev21.github.io/privacy.html" style="font-size:11px;color:#075E54;text-decoration:underline;">Privacy Policy</a>
   </div>
   </div>
@@ -596,9 +596,11 @@ async function loadFromDrive() {
       if(wasOnDashboard){ document.getElementById('hdr-sub').textContent='No files found · '+lastUpdated; showLoading(false); return; }
       showErr('gdrive-err','No Excel files found in this folder.'); showLoading(false); return;
     }
-    const dbF=files.find(f=>f.name==='DayBook.xlsx');
-    const drF=files.find(f=>f.name==='Debtors.xlsx');
-    const crF=files.find(f=>f.name==='Creditors.xlsx');
+    // Flexible filename matching — case insensitive, accepts variations
+    const match = (file, keywords) => keywords.some(kw => file.name.toLowerCase().includes(kw.toLowerCase()));
+    const dbF = files.find(f => match(f, ['daybook', 'day book', 'day-book', 'daybk', 'day_book']));
+    const drF = files.find(f => match(f, ['debtor', 'debtors', 'sundry debtor', 'receivable', 'detor', 'debter']));
+    const crF = files.find(f => match(f, ['creditor', 'creditors', 'sundry creditor', 'payable', 'crediter', 'credtor']));
     if(!dbF&&!drF&&!crF){
       if(wasOnDashboard){ document.getElementById('hdr-sub').textContent='Files not found · '+lastUpdated; showLoading(false); return; }
       showErr('gdrive-err','Could not match files.'); showLoading(false); return;
@@ -741,7 +743,7 @@ function renderMain() {
   showScreen('screen-main');
   show('back-btn','none');
   document.getElementById('hdr-avatar').textContent='JK';
-  document.getElementById('hdr-name').textContent='JK Electricals';
+  document.getElementById('hdr-name').textContent='JK Electricals Dashboard';
   show('refresh-btn','block');
 }
 
