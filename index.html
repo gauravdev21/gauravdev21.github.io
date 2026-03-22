@@ -6,7 +6,7 @@
 <title>JK Electricals</title>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <meta name="theme-color" content="#075E54">
-<meta name="description" content="JK Electricals — Private business dashboard. Privacy Policy: https://gauravdev21.github.io/privacy.html">
+<meta name="description" content="JK Electricals Dashboard — Private business dashboard. Privacy Policy: https://gauravdev21.github.io/privacy.html">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -220,7 +220,7 @@
 </head>
 <body>
 
-<h1 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">JK Electricals</h1>
+<h1 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">JK Electricals Dashboard</h1>
 <div id="loading"><div class="loading-box"><div class="spin"></div><p class="spin-lbl">Loading...</p></div></div>
 
 <!-- ══════════════════════════
@@ -230,11 +230,12 @@
   <div class="wa-back" id="back-btn" onclick="goBack()">‹</div>
   <div class="wa-avatar" id="hdr-avatar">JK</div>
   <div class="wa-header-info">
-    <div class="wa-header-name" id="hdr-name">JK Electricals</div>
+    <div class="wa-header-name" id="hdr-name">JK Electricals Dashboard</div>
     <div class="wa-header-sub" id="hdr-sub">Upload files to begin</div>
   </div>
   <div class="wa-header-actions">
-    <button class="wa-icon-btn" onclick="showUpload()" title="Upload files">⊕</button>
+    <button id="share-btn" onclick="sharePDF()" style="display:none;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:16px;padding:5px 12px;font-size:12px;font-weight:700;font-family:Roboto,sans-serif;cursor:pointer;">Share</button>
+    <button id="refresh-btn" onclick="refreshData()" style="display:none;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:16px;padding:5px 12px;font-size:12px;font-weight:700;font-family:Roboto,sans-serif;cursor:pointer;margin-left:6px;">Refresh</button>
   </div>
 </div>
 
@@ -313,7 +314,7 @@
     </div>
 
   <div style="text-align:center;padding:8px 0 20px;">
-    <p style="font-size:12px;color:#888;margin-bottom:6px;font-weight:bold;">JK Electricals</p>
+    <p style="font-size:12px;color:#888;margin-bottom:6px;font-weight:bold;">JK Electricals Dashboard</p>
     <a href="https://gauravdev21.github.io/privacy.html" style="font-size:11px;color:#075E54;text-decoration:underline;">Privacy Policy</a>
   </div>
   </div>
@@ -743,7 +744,7 @@ function renderMain() {
   showScreen('screen-main');
   show('back-btn','none');
   document.getElementById('hdr-avatar').textContent='JK';
-  document.getElementById('hdr-name').textContent='JK Electricals';
+  document.getElementById('hdr-name').textContent='JK Electricals Dashboard';
   show('refresh-btn','block');
 }
 
@@ -895,10 +896,14 @@ function drillDown(type,name,closingBalance) {
 
   showScreen('screen-drill');
   show('back-btn','block');
+  show('share-btn','block');
+  show('refresh-btn','none');
   const initials=name.trim().split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
   document.getElementById('hdr-avatar').textContent=initials;
   document.getElementById('hdr-name').textContent=name;
   document.getElementById('hdr-sub').textContent=isDebtor?'Debtor':'Creditor';
+  // Store current drill data for sharing
+  window._drillData = { name, type, closingBalance, isDebtor, primaryTxns: [...primaryTxns], incomingTxns: [...incomingTxns], others: [...others] };
 }
 
 // ══════════════════════════════
@@ -992,6 +997,168 @@ function toggleManual() {
     sec.style.display = 'none';
     lnk.textContent = 'Having trouble? Upload files manually';
   }
+}
+
+
+// ══════════════════════════════
+// SHARE AS PDF
+// ══════════════════════════════
+function sharePDF() {
+  const d = window._drillData;
+  if (!d) return;
+
+  const { name, isDebtor, closingBalance, primaryTxns, incomingTxns, others } = d;
+  const today = new Date().toLocaleDateString('en-IN', {day:'2-digit', month:'long', year:'numeric'});
+
+  // Get all daybook entries for this party
+  const allDaybook = DB.daybook
+    .filter(t => t.party.toLowerCase() === name.toLowerCase())
+    .sort((a,b) => a.rawDate - b.rawDate);
+
+  const primaryTotal  = primaryTxns.reduce((s,r)=>s+(r.debit||r.credit),0);
+  const incomingTotal = incomingTxns.reduce((s,r)=>s+(r.debit||r.credit),0);
+
+  function txnRows(txns) {
+    if (!txns.length) return `<tr><td colspan="4" style="text-align:center;color:#888;padding:12px;">No entries found</td></tr>`;
+    return txns.map((r,i) => `
+      <tr style="background:${i%2===0?'#F9F9F9':'#FFFFFF'}">
+        <td style="padding:8px 10px;font-size:12px;color:#444;">${r.dateStr}</td>
+        <td style="padding:8px 10px;font-size:12px;color:#444;">${r.vnum||'—'}</td>
+        <td style="padding:8px 10px;font-size:12px;color:#444;">${r.vtype}</td>
+        <td style="padding:8px 10px;font-size:12px;text-align:right;font-weight:600;color:#111;">${fmt(r.debit||r.credit)}</td>
+      </tr>`).join('');
+  }
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Arial, sans-serif; color: #111; background: #fff; padding: 32px; }
+  .header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #075E54; padding-bottom:16px; margin-bottom:24px; }
+  .company { font-size:22px; font-weight:700; color:#075E54; }
+  .company-sub { font-size:12px; color:#888; margin-top:3px; }
+  .doc-title { text-align:right; }
+  .doc-title h2 { font-size:16px; color:#075E54; }
+  .doc-title p { font-size:12px; color:#888; margin-top:3px; }
+  .party-box { background:#F0FAF8; border:1px solid #B2DFD8; border-radius:8px; padding:16px 20px; margin-bottom:24px; display:flex; justify-content:space-between; align-items:center; }
+  .party-name { font-size:16px; font-weight:700; }
+  .party-type { font-size:12px; color:#075E54; font-weight:600; background:#075E54; color:#fff; padding:3px 10px; border-radius:12px; }
+  .summary-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:28px; }
+  .sum-card { border:1px solid #E0E0E0; border-radius:8px; padding:14px 16px; }
+  .sum-card.highlight { background:#075E54; border-color:#075E54; }
+  .sum-label { font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; }
+  .sum-card.highlight .sum-label { color:rgba(255,255,255,0.7); }
+  .sum-value { font-size:18px; font-weight:700; color:#111; }
+  .sum-card.highlight .sum-value { color:#fff; }
+  .section { margin-bottom:28px; }
+  .section-title { font-size:13px; font-weight:700; color:#075E54; text-transform:uppercase; letter-spacing:0.5px; border-left:4px solid #075E54; padding-left:10px; margin-bottom:12px; }
+  table { width:100%; border-collapse:collapse; }
+  thead tr { background:#075E54; }
+  thead th { padding:9px 10px; font-size:11px; color:#fff; text-align:left; font-weight:600; letter-spacing:0.3px; }
+  thead th:last-child { text-align:right; }
+  .total-row td { padding:9px 10px; font-weight:700; font-size:13px; background:#E8F5E9; border-top:2px solid #075E54; }
+  .total-row td:last-child { text-align:right; color:#075E54; }
+  .footer { margin-top:32px; border-top:1px solid #E0E0E0; padding-top:14px; display:flex; justify-content:space-between; align-items:center; }
+  .footer-left { font-size:11px; color:#888; }
+  .footer-right { font-size:11px; color:#888; text-align:right; }
+  @media print { body { padding: 20px; } }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="company">JK Electricals</div>
+      <div class="company-sub">Shop No.3, Janki Bazar 41, G B Marg, Lucknow</div>
+      <div class="company-sub">📞 09235898036 &nbsp;|&nbsp; ✉ jkelectricalska@gmail.com</div>
+    </div>
+    <div class="doc-title">
+      <h2>${isDebtor ? 'Debtor Statement' : 'Creditor Statement'}</h2>
+      <p>Date: ${today}</p>
+    </div>
+  </div>
+
+  <div class="party-box">
+    <div>
+      <div style="font-size:11px;color:#888;margin-bottom:4px;">Party Name</div>
+      <div class="party-name">${name}</div>
+    </div>
+    <div class="party-type">${isDebtor ? 'DEBTOR' : 'CREDITOR'}</div>
+  </div>
+
+  <div class="summary-grid">
+    <div class="sum-card">
+      <div class="sum-label">${isDebtor ? 'Total Sales' : 'Total Purchases'}</div>
+      <div class="sum-value">${fmt(primaryTotal)}</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">${isDebtor ? 'Total Received' : 'Total Paid'}</div>
+      <div class="sum-value">${fmt(incomingTotal)}</div>
+    </div>
+    <div class="sum-card highlight">
+      <div class="sum-label">Outstanding Balance</div>
+      <div class="sum-value">${fmt(closingBalance)}</div>
+    </div>
+  </div>
+
+  ${primaryTxns.length ? `
+  <div class="section">
+    <div class="section-title">${isDebtor ? 'Sales' : 'Purchases'}</div>
+    <table>
+      <thead><tr>
+        <th>Date</th><th>Voucher No.</th><th>Type</th><th style="text-align:right;">Amount</th>
+      </tr></thead>
+      <tbody>${txnRows(primaryTxns)}</tbody>
+      <tfoot><tr class="total-row">
+        <td colspan="3">Total ${isDebtor ? 'Sales' : 'Purchases'}</td>
+        <td>${fmt(primaryTotal)}</td>
+      </tr></tfoot>
+    </table>
+  </div>` : ''}
+
+  ${incomingTxns.length ? `
+  <div class="section">
+    <div class="section-title">${isDebtor ? 'Payments Received' : 'Payments Made'}</div>
+    <table>
+      <thead><tr>
+        <th>Date</th><th>Voucher No.</th><th>Type</th><th style="text-align:right;">Amount</th>
+      </tr></thead>
+      <tbody>${txnRows(incomingTxns)}</tbody>
+      <tfoot><tr class="total-row">
+        <td colspan="3">Total ${isDebtor ? 'Received' : 'Paid'}</td>
+        <td>${fmt(incomingTotal)}</td>
+      </tr></tfoot>
+    </table>
+  </div>` : ''}
+
+  ${others.length ? `
+  <div class="section">
+    <div class="section-title">Other Entries</div>
+    <table>
+      <thead><tr>
+        <th>Date</th><th>Voucher No.</th><th>Type</th><th style="text-align:right;">Amount</th>
+      </tr></thead>
+      <tbody>${txnRows(others)}</tbody>
+    </table>
+  </div>` : ''}
+
+  <div class="footer">
+    <div class="footer-left">Generated from JK Electricals Dashboard<br>All amounts in Indian Rupees (₹)</div>
+    <div class="footer-right"><strong>Outstanding Balance</strong><br><span style="font-size:16px;font-weight:700;color:#075E54;">${fmt(closingBalance)}</span></div>
+  </div>
+</body>
+</html>`;
+
+  // Open in new window and trigger print/save as PDF
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.onload = () => {
+    setTimeout(() => {
+      win.print(); // On mobile this shows Save as PDF + Share options
+    }, 500);
+  };
 }
 
 window.addEventListener('load',()=>{setTimeout(initGoogleAuth,800); autoLoad();});
