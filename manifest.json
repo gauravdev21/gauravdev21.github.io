@@ -2,7 +2,7 @@
   "name": "JK Electricals",
   "short_name": "JK Electricals",
   "description": "Business dashboard for JK Electricals",
-  "start_url": "https://gauravdev21.github.io/",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#075E54",
   "theme_color": "#075E54",
